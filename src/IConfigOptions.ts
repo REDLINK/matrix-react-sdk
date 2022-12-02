@@ -191,6 +191,8 @@ export interface IConfigOptions {
         description: string;
         show_once?: boolean;
     };
+
+    rl_show_home_server: boolean;
 }
 
 export interface ISsoRedirectOptions {

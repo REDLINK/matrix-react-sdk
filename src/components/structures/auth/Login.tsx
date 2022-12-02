@@ -31,13 +31,11 @@ import SettingsStore from "../../../settings/SettingsStore";
 import { UIFeature } from "../../../settings/UIFeature";
 import { IMatrixClientCreds } from "../../../MatrixClientPeg";
 import PasswordLogin from "../../views/auth/PasswordLogin";
-import InlineSpinner from "../../views/elements/InlineSpinner";
 import Spinner from "../../views/elements/Spinner";
 import SSOButtons from "../../views/elements/SSOButtons";
 import ServerPicker from "../../views/elements/ServerPicker";
 import AuthBody from "../../views/auth/AuthBody";
 import AuthHeader from "../../views/auth/AuthHeader";
-import AccessibleButton from '../../views/elements/AccessibleButton';
 import { ValidatedServerConfig } from '../../../utils/ValidatedServerConfig';
 
 // These are used in several places, and come from the js-sdk's autodiscovery
@@ -571,9 +569,9 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             );
         }
 
-        let footer;
+        /*let footer;*/
         if (this.props.isSyncing || this.state.busyLoggingIn) {
-            footer = <div className="mx_AuthBody_paddedFooter">
+            /*footer = <div className="mx_AuthBody_paddedFooter">
                 <div className="mx_AuthBody_paddedFooter_title">
                     <InlineSpinner w={20} h={20} />
                     { this.props.isSyncing ? _t("Syncing...") : _t("Signing In...") }
@@ -581,9 +579,9 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                 { this.props.isSyncing && <div className="mx_AuthBody_paddedFooter_subtitle">
                     { _t("If you've joined lots of rooms, this might take a while") }
                 </div> }
-            </div>;
+            </div>;*/
         } else if (SettingsStore.getValue(UIFeature.Registration)) {
-            footer = (
+            /*footer = (
                 <span className="mx_AuthBody_changeFlow">
                     { _t("New? <a>Create account</a>", {}, {
                         a: sub =>
@@ -592,7 +590,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                             </AccessibleButton>,
                     }) }
                 </span>
-            );
+            );*/
         }
 
         return (
@@ -610,7 +608,6 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                         onServerConfigChange={this.props.onServerConfigChange}
                     />
                     { this.renderLoginComponentForFlows() }
-                    { footer }
                 </AuthBody>
             </AuthPage>
         );
