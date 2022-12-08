@@ -153,10 +153,9 @@ export default class UserSettingsDialog extends React.Component<IProps, IState> 
                 undefined,
             ));
         }
-        // Show the Labs tab if enabled or if there are any active betas
-        if (SdkConfig.get("show_labs_settings")
-            || SettingsStore.getFeatureSettingNames().some(k => SettingsStore.getBetaInfo(k))
-        ) {
+        // Show the Labs tab if enabled (disabled by RL: or if there are any active betas) /*|| SettingsStore.getFeatureSettingNames().some(k => SettingsStore.getBetaInfo(k)*/
+        if (SdkConfig.get("show_labs_settings")) {
+            console.log('###', SettingsStore.getFeatureSettingNames().some(k => SettingsStore.getBetaInfo(k)));
             tabs.push(new Tab(
                 UserTab.Labs,
                 _td("Labs"),

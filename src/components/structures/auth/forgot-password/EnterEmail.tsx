@@ -59,8 +59,7 @@ export const EnterEmail: React.FC<EnterEmailProps> = ({
         emailFieldRef.current?.validate({ allowEmpty: false, focused: true });
     };
 
-    return <>
-        <EmailIcon className="mx_AuthBody_icon" />
+    /* <EmailIcon className="mx_AuthBody_icon" />
         <h1>{ _t("Enter your email to reset password") }</h1>
         <p className="mx_AuthBody_text">
             {
@@ -93,6 +92,15 @@ export const EnterEmail: React.FC<EnterEmailProps> = ({
                     { submitButtonChild }
                 </button>
             </fieldset>
-        </form>
+        </form>*/
+    return <>
+        <h1>Passwort vergessen?</h1>
+        <p className="mx_AuthBody_text">
+            Bitte wenden Sie sich an Ihre Einrichtung.
+        </p>
+
+        <a href="#/login" className="mx_linkButton">
+            Zurück
+        </a>
     </>;
 };

@@ -333,7 +333,7 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, onClose }) => {
             SettingsStore.getValue(UIFeature.Widgets)
             && !isVideoRoom
             && shouldShowComponent(UIComponent.AddIntegrations)
-            && <AppsSection room={room} />
+            /*&& <AppsSection room={room} /> -> disabled as we don't want the widgets */
         }
     </BaseCard>;
 };
