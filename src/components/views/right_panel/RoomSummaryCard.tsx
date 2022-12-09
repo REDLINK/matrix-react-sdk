@@ -321,9 +321,9 @@ const RoomSummaryCard: React.FC<IProps> = ({ room, onClose }) => {
             { !isVideoRoom && <Button className="mx_RoomSummaryCard_icon_export" onClick={onRoomExportClick}>
                 { _t("Export chat") }
             </Button> }
-            <Button className="mx_RoomSummaryCard_icon_share" onClick={onShareRoomClick}>
+            {/*<Button className="mx_RoomSummaryCard_icon_share" onClick={onShareRoomClick}>
                 { _t("Share room") }
-            </Button>
+            </Button>*/}
             <Button className="mx_RoomSummaryCard_icon_settings" onClick={onRoomSettingsClick}>
                 { _t("Room settings") }
             </Button>
