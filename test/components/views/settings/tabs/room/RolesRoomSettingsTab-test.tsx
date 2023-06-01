@@ -39,11 +39,11 @@ describe("RolesRoomSettingsTab", () => {
     };
 
     const getVoiceBroadcastsSelect = (): HTMLElement => {
-        return renderTab().container.querySelector("select[label='Voice broadcasts']");
+        return renderTab().container.querySelector("select[label='Voice broadcasts']")!;
     };
 
     const getVoiceBroadcastsSelectedOption = (): HTMLElement => {
-        return renderTab().container.querySelector("select[label='Voice broadcasts'] option:checked");
+        return renderTab().container.querySelector("select[label='Voice broadcasts'] option:checked")!;
     };
 
     beforeEach(() => {
@@ -65,7 +65,7 @@ describe("RolesRoomSettingsTab", () => {
                     state_key: "",
                     content: {
                         users: {
-                            [cli.getUserId()]: 100,
+                            [cli.getUserId()!]: 100,
                             "@admin:server": 100,
                         },
                     },
@@ -92,15 +92,11 @@ describe("RolesRoomSettingsTab", () => {
         });
 
         it("should update the power levels", () => {
-            expect(cli.sendStateEvent).toHaveBeenCalledWith(
-                roomId,
-                EventType.RoomPowerLevels,
-                {
-                    events: {
-                        [VoiceBroadcastInfoEventType]: 0,
-                    },
+            expect(cli.sendStateEvent).toHaveBeenCalledWith(roomId, EventType.RoomPowerLevels, {
+                events: {
+                    [VoiceBroadcastInfoEventType]: 0,
                 },
-            );
+            });
         });
     });
 
@@ -112,19 +108,19 @@ describe("RolesRoomSettingsTab", () => {
         };
 
         const getStartCallSelect = (tab: RenderResult): HTMLElement => {
-            return tab.container.querySelector("select[label='Start Element Call calls']");
+            return tab.container.querySelector("select[label='Start Element Call calls']")!;
         };
 
         const getStartCallSelectedOption = (tab: RenderResult): HTMLElement => {
-            return tab.container.querySelector("select[label='Start Element Call calls'] option:checked");
+            return tab.container.querySelector("select[label='Start Element Call calls'] option:checked")!;
         };
 
         const getJoinCallSelect = (tab: RenderResult): HTMLElement => {
-            return tab.container.querySelector("select[label='Join Element Call calls']");
+            return tab.container.querySelector("select[label='Join Element Call calls']")!;
         };
 
         const getJoinCallSelectedOption = (tab: RenderResult): HTMLElement => {
-            return tab.container.querySelector("select[label='Join Element Call calls'] option:checked");
+            return tab.container.querySelector("select[label='Join Element Call calls'] option:checked")!;
         };
 
         describe("Element Call enabled", () => {
@@ -145,15 +141,11 @@ describe("RolesRoomSettingsTab", () => {
                     });
 
                     expect(getJoinCallSelectedOption(tab)?.textContent).toBe("Default");
-                    expect(cli.sendStateEvent).toHaveBeenCalledWith(
-                        roomId,
-                        EventType.RoomPowerLevels,
-                        {
-                            events: {
-                                [ElementCall.MEMBER_EVENT_TYPE.name]: 0,
-                            },
+                    expect(cli.sendStateEvent).toHaveBeenCalledWith(roomId, EventType.RoomPowerLevels, {
+                        events: {
+                            [ElementCall.MEMBER_EVENT_TYPE.name]: 0,
                         },
-                    );
+                    });
                 });
             });
 
@@ -170,15 +162,11 @@ describe("RolesRoomSettingsTab", () => {
                     });
 
                     expect(getStartCallSelectedOption(tab)?.textContent).toBe("Default");
-                    expect(cli.sendStateEvent).toHaveBeenCalledWith(
-                        roomId,
-                        EventType.RoomPowerLevels,
-                        {
-                            events: {
-                                [ElementCall.CALL_EVENT_TYPE.name]: 0,
-                            },
+                    expect(cli.sendStateEvent).toHaveBeenCalledWith(roomId, EventType.RoomPowerLevels, {
+                        events: {
+                            [ElementCall.CALL_EVENT_TYPE.name]: 0,
                         },
-                    );
+                    });
                 });
             });
         });
