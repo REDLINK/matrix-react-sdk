@@ -71,7 +71,6 @@ import RoomTopic from "../views/elements/RoomTopic";
 import withValidation from "../views/elements/Validation";
 import RoomInfoLine from "../views/rooms/RoomInfoLine";
 import RoomPreviewCard from "../views/rooms/RoomPreviewCard";
-import { SpaceFeedbackPrompt } from "../views/spaces/SpaceCreateMenu";
 import SpacePublicShare from "../views/spaces/SpacePublicShare";
 import { ChevronFace, ContextMenuButton, useContextMenu } from "./ContextMenu";
 import MainSplit from "./MainSplit";
@@ -269,7 +268,6 @@ const SpaceLanding: React.FC<{ space: Room }> = ({ space }) => {
         <div className="mx_SpaceRoomView_landing">
             <div className="mx_SpaceRoomView_landing_header">
                 <RoomAvatar room={space} height={80} width={80} viewAvatarOnClick={true} />
-                <SpaceFeedbackPrompt />
             </div>
             <div className="mx_SpaceRoomView_landing_name">
                 <RoomName room={space}>
@@ -338,7 +336,7 @@ const SpaceSetupFirstRooms: React.FC<{
             const filteredRoomNames = roomNames.map((name) => name.trim()).filter(Boolean);
             const roomIds = await Promise.all(
                 filteredRoomNames.map((name) => {
-                    return createRoom({
+                    return createRoom(space.client, {
                         createOpts: {
                             preset: isPublic ? Preset.PublicChat : Preset.PrivateChat,
                             name,
@@ -478,7 +476,7 @@ const SpaceSetupPrivateScope: React.FC<{
                     onFinished(false);
                 }}
             >
-                <h3>{_t("Just me")}</h3>
+                {_t("Just me")}
                 <div>{_t("A private space to organise your rooms")}</div>
             </AccessibleButton>
             <AccessibleButton
@@ -487,7 +485,7 @@ const SpaceSetupPrivateScope: React.FC<{
                     onFinished(true);
                 }}
             >
-                <h3>{_t("Me and my teammates")}</h3>
+                {_t("Me and my teammates")}
                 <div>{_t("A private space for you and your teammates")}</div>
             </AccessibleButton>
         </div>
@@ -550,7 +548,7 @@ const SpaceSetupPrivateInvite: React.FC<{
         setBusy(true);
         const targetIds = emailAddresses.map((name) => name.trim()).filter(Boolean);
         try {
-            const result = await inviteMultipleToRoom(space.roomId, targetIds);
+            const result = await inviteMultipleToRoom(space.client, space.roomId, targetIds);
 
             const failedUsers = Object.keys(result.states).filter((a) => result.states[a] === "error");
             if (failedUsers.length > 0) {
@@ -585,22 +583,6 @@ const SpaceSetupPrivateInvite: React.FC<{
             <h1>{_t("Invite your teammates")}</h1>
             <div className="mx_SpaceRoomView_description">
                 {_t("Make sure the right people have access. You can invite more later.")}
-            </div>
-
-            <div className="mx_SpaceRoomView_inviteTeammates_betaDisclaimer">
-                {_t(
-                    "<b>This is an experimental feature.</b> For now, " +
-                        "new users receiving an invite will have to open the invite on <link/> to actually join.",
-                    {},
-                    {
-                        b: (sub) => <b>{sub}</b>,
-                        link: () => (
-                            <a href="https://app.element.io/" rel="noreferrer noopener" target="_blank">
-                                app.element.io
-                            </a>
-                        ),
-                    },
-                )}
             </div>
 
             {error && <div className="mx_SpaceRoomView_errorText">{error}</div>}

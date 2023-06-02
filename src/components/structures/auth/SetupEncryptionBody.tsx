@@ -26,7 +26,7 @@ import Modal from "../../../Modal";
 import VerificationRequestDialog from "../../views/dialogs/VerificationRequestDialog";
 import { SetupEncryptionStore, Phase } from "../../../stores/SetupEncryptionStore";
 import EncryptionPanel from "../../views/right_panel/EncryptionPanel";
-import AccessibleButton from "../../views/elements/AccessibleButton";
+import AccessibleButton, { ButtonEvent } from "../../views/elements/AccessibleButton";
 import Spinner from "../../views/elements/Spinner";
 
 function keyHasPassphrase(keyInfo: ISecretStorageKeyInfo): boolean {
@@ -38,9 +38,9 @@ interface IProps {
 }
 
 interface IState {
-    phase: Phase;
-    verificationRequest: VerificationRequest;
-    backupInfo: IKeyBackupInfo;
+    phase?: Phase;
+    verificationRequest: VerificationRequest | null;
+    backupInfo: IKeyBackupInfo | null;
     lostKeys: boolean;
 }
 
@@ -96,7 +96,7 @@ export default class SetupEncryptionBody extends React.Component<IProps, IState>
         this.props.onFinished();
         Modal.createDialog(VerificationRequestDialog, {
             verificationRequestPromise: requestPromise,
-            member: cli.getUser(userId),
+            member: cli.getUser(userId) ?? undefined,
             onFinished: async (): Promise<void> => {
                 const request = await requestPromise;
                 request.cancel();
@@ -115,7 +115,7 @@ export default class SetupEncryptionBody extends React.Component<IProps, IState>
         store.returnAfterSkip();
     };
 
-    private onResetClick = (ev: React.MouseEvent<HTMLButtonElement>): void => {
+    private onResetClick = (ev: ButtonEvent): void => {
         ev.preventDefault();
         const store = SetupEncryptionStore.sharedInstance();
         store.reset();
@@ -142,15 +142,16 @@ export default class SetupEncryptionBody extends React.Component<IProps, IState>
     };
 
     public render(): React.ReactNode {
+        const cli = MatrixClientPeg.get();
         const { phase, lostKeys } = this.state;
 
-        if (this.state.verificationRequest) {
+        if (this.state.verificationRequest && cli.getUser(this.state.verificationRequest.otherUserId)) {
             return (
                 <EncryptionPanel
                     layout="dialog"
                     verificationRequest={this.state.verificationRequest}
                     onClose={this.onEncryptionPanelClose}
-                    member={MatrixClientPeg.get().getUser(this.state.verificationRequest.otherUserId)}
+                    member={cli.getUser(this.state.verificationRequest.otherUserId)!}
                     isRoomEncrypted={false}
                 />
             );

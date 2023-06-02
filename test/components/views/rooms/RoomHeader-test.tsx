@@ -112,7 +112,7 @@ describe("RoomHeader", () => {
             [MediaDeviceKindEnum.AudioOutput]: [],
         });
 
-        DMRoomMap.makeShared();
+        DMRoomMap.makeShared(client);
         jest.spyOn(DMRoomMap.shared(), "getUserIdForRoomId").mockReturnValue(carol.userId);
     });
 
@@ -120,7 +120,7 @@ describe("RoomHeader", () => {
         await Promise.all([CallStore.instance, WidgetStore.instance].map(resetAsyncStoreWithClient));
         client.reEmitter.stopReEmitting(room, [RoomStateEvent.Events]);
         jest.restoreAllMocks();
-        SdkConfig.put({});
+        SdkConfig.reset();
     });
 
     const mockRoomType = (type: string) => {
@@ -761,7 +761,7 @@ function createRoom(info: IRoomCreationInfo) {
         };
     }
 
-    DMRoomMap.makeShared().start();
+    DMRoomMap.makeShared(client).start();
 
     const room = new Room(roomId, client, userId, {
         pendingEventOrdering: PendingEventOrdering.Detached,

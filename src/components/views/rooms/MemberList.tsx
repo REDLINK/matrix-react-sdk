@@ -46,6 +46,7 @@ import { shouldShowComponent } from "../../../customisations/helpers/UIComponent
 import { UIComponent } from "../../../settings/UIFeature";
 import PosthogTrackers from "../../../PosthogTrackers";
 import { SDKContext } from "../../../contexts/SDKContext";
+import AccessibleTooltipButton from "../elements/AccessibleTooltipButton";
 
 const INITIAL_LOAD_NUM_MEMBERS = 30;
 const INITIAL_LOAD_NUM_INVITED = 5;
@@ -77,7 +78,7 @@ export default class MemberList extends React.Component<IProps, IState> {
     public constructor(props: IProps, context: React.ContextType<typeof SDKContext>) {
         super(props);
         this.state = this.getMembersState([], []);
-        this.showPresence = context.memberListStore.isPresenceEnabled();
+        this.showPresence = context?.memberListStore.isPresenceEnabled() ?? true;
         this.mounted = true;
         this.listenForMembersChanges();
     }
@@ -142,7 +143,7 @@ export default class MemberList extends React.Component<IProps, IState> {
         };
     }
 
-    private onUserPresenceChange = (event: MatrixEvent, user: User): void => {
+    private onUserPresenceChange = (event: MatrixEvent | undefined, user: User): void => {
         // Attach a SINGLE listener for global presence changes then locate the
         // member tile and re-render it. This is more efficient than every tile
         // ever attaching their own listener.
@@ -162,7 +163,7 @@ export default class MemberList extends React.Component<IProps, IState> {
         this.updateListNow(true);
     };
 
-    private onMyMembership = (room: Room, membership: string, oldMembership: string): void => {
+    private onMyMembership = (room: Room, membership: string, oldMembership?: string): void => {
         if (room.roomId === this.props.roomId && membership === "join" && oldMembership !== "join") {
             // we just joined the room, load the member list
             this.updateListNow(true);
@@ -278,7 +279,7 @@ export default class MemberList extends React.Component<IProps, IState> {
         });
     };
 
-    private getPending3PidInvites(): MatrixEvent[] | undefined {
+    private getPending3PidInvites(): MatrixEvent[] {
         // include 3pid invites (m.room.third_party_invite) state events.
         // The HS may have already converted these into m.room.member invites so
         // we shouldn't add them if the 3pid invite state key (token) is in the
@@ -291,11 +292,13 @@ export default class MemberList extends React.Component<IProps, IState> {
 
                 // discard all invites which have a m.room.member event since we've
                 // already added them.
-                const memberEvent = room.currentState.getInviteForThreePidToken(e.getStateKey());
+                const memberEvent = room.currentState.getInviteForThreePidToken(e.getStateKey()!);
                 if (memberEvent) return false;
                 return true;
             });
         }
+
+        return [];
     }
 
     private makeMemberTiles(members: Array<RoomMember | MatrixEvent>): JSX.Element[] {
@@ -347,7 +350,7 @@ export default class MemberList extends React.Component<IProps, IState> {
 
         const cli = MatrixClientPeg.get();
         const room = cli.getRoom(this.props.roomId);
-        let inviteButton;
+        let inviteButton: JSX.Element | undefined;
 
         if (room?.getMyMembership() === "join" && shouldShowComponent(UIComponent.InviteUsers)) {
             let inviteButtonText = _t("Invite to this room");
@@ -355,15 +358,24 @@ export default class MemberList extends React.Component<IProps, IState> {
                 inviteButtonText = _t("Invite to this space");
             }
 
-            inviteButton = (
-                <AccessibleButton
-                    className="mx_MemberList_invite"
-                    onClick={this.onInviteButtonClick}
-                    disabled={!this.state.canInvite}
-                >
-                    <span>{inviteButtonText}</span>
-                </AccessibleButton>
-            );
+            if (this.state.canInvite) {
+                inviteButton = (
+                    <AccessibleButton className="mx_MemberList_invite" onClick={this.onInviteButtonClick}>
+                        <span>{inviteButtonText}</span>
+                    </AccessibleButton>
+                );
+            } else {
+                inviteButton = (
+                    <AccessibleTooltipButton
+                        className="mx_MemberList_invite"
+                        onClick={null}
+                        disabled
+                        tooltip={_t("You do not have permission to invite users")}
+                    >
+                        <span>{inviteButtonText}</span>
+                    </AccessibleTooltipButton>
+                );
+            }
         }
 
         let invitedHeader;

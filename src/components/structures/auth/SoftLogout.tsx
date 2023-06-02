@@ -18,6 +18,7 @@ import React, { ChangeEvent, SyntheticEvent } from "react";
 import { logger } from "matrix-js-sdk/src/logger";
 import { Optional } from "matrix-events-sdk";
 import { ISSOFlow, LoginFlow, SSOAction } from "matrix-js-sdk/src/@types/auth";
+import { MatrixError } from "matrix-js-sdk/src/http-api";
 
 import { _t } from "../../../languageHandler";
 import dis from "../../../dispatcher/dispatcher";
@@ -114,7 +115,7 @@ export default class SoftLogout extends React.Component<IProps, IState> {
 
     private async initLogin(): Promise<void> {
         const queryParams = this.props.realQueryParams;
-        const hasAllParams = queryParams && queryParams["loginToken"];
+        const hasAllParams = queryParams?.["loginToken"];
         if (hasAllParams) {
             this.setState({ loginView: LoginView.Loading });
             this.trySsoLogin();
@@ -156,7 +157,7 @@ export default class SoftLogout extends React.Component<IProps, IState> {
                 user: MatrixClientPeg.get().getUserId(),
             },
             password: this.state.password,
-            device_id: MatrixClientPeg.get().getDeviceId(),
+            device_id: MatrixClientPeg.get().getDeviceId() ?? undefined,
         };
 
         let credentials: IMatrixClientCreds;
@@ -164,7 +165,11 @@ export default class SoftLogout extends React.Component<IProps, IState> {
             credentials = await sendLoginRequest(hsUrl, isUrl, loginType, loginParams);
         } catch (e) {
             let errorText = _t("Failed to re-authenticate due to a homeserver problem");
-            if (e.errcode === "M_FORBIDDEN" && (e.httpStatus === 401 || e.httpStatus === 403)) {
+            if (
+                e instanceof MatrixError &&
+                e.errcode === "M_FORBIDDEN" &&
+                (e.httpStatus === 401 || e.httpStatus === 403)
+            ) {
                 errorText = _t("Incorrect password");
             }
 
@@ -185,11 +190,17 @@ export default class SoftLogout extends React.Component<IProps, IState> {
         this.setState({ busy: true });
 
         const hsUrl = localStorage.getItem(SSO_HOMESERVER_URL_KEY);
+        if (!hsUrl) {
+            logger.error("Homeserver URL unknown for SSO login callback");
+            this.setState({ busy: false, loginView: LoginView.Unsupported });
+            return;
+        }
+
         const isUrl = localStorage.getItem(SSO_ID_SERVER_URL_KEY) || MatrixClientPeg.get().getIdentityServerUrl();
         const loginType = "m.login.token";
         const loginParams = {
             token: this.props.realQueryParams["loginToken"],
-            device_id: MatrixClientPeg.get().getDeviceId(),
+            device_id: MatrixClientPeg.get().getDeviceId() ?? undefined,
         };
 
         let credentials: IMatrixClientCreds;

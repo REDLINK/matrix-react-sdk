@@ -188,6 +188,11 @@ export interface IConfigOptions {
     };
 
     rl_show_home_server: boolean;
+
+    feedback: {
+        existing_issues_url: string;
+        new_issue_url: string;
+    };
 }
 
 export interface ISsoRedirectOptions {

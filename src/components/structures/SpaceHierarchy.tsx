@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Matrix.org Foundation C.I.C.
+Copyright 2021 - 2023 The Matrix.org Foundation C.I.C.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,10 +32,11 @@ import { Room, RoomEvent } from "matrix-js-sdk/src/models/room";
 import { RoomHierarchy } from "matrix-js-sdk/src/room-hierarchy";
 import { EventType, RoomType } from "matrix-js-sdk/src/@types/event";
 import { IHierarchyRelation, IHierarchyRoom } from "matrix-js-sdk/src/@types/spaces";
-import { MatrixClient } from "matrix-js-sdk/src/matrix";
+import { ClientEvent, MatrixClient, MatrixError } from "matrix-js-sdk/src/matrix";
 import classNames from "classnames";
 import { sortBy, uniqBy } from "lodash";
 import { GuestAccess, HistoryVisibility } from "matrix-js-sdk/src/@types/partials";
+import { logger } from "matrix-js-sdk/src/logger";
 
 import defaultDispatcher from "../../dispatcher/dispatcher";
 import { _t } from "../../languageHandler";
@@ -100,8 +101,8 @@ const Tile: React.FC<ITileProps> = ({
     children,
 }) => {
     const cli = useContext(MatrixClientContext);
-    const [joinedRoom, setJoinedRoom] = useState<Room | undefined>(() => {
-        const cliRoom = cli.getRoom(room.room_id);
+    const joinedRoom = useTypedEventEmitterState(cli, ClientEvent.Room, () => {
+        const cliRoom = cli?.getRoom(room.room_id);
         return cliRoom?.getMyMembership() === "join" ? cliRoom : undefined;
     });
     const joinedRoomName = useTypedEventEmitterState(joinedRoom, RoomEvent.Name, (room) => room?.name);
@@ -127,7 +128,6 @@ const Tile: React.FC<ITileProps> = ({
         ev.stopPropagation();
         onJoinRoomClick()
             .then(() => awaitRoomDownSync(cli, room.room_id))
-            .then(setJoinedRoom)
             .finally(() => {
                 setBusy(false);
             });
@@ -398,8 +398,19 @@ export const joinRoom = async (cli: MatrixClient, hierarchy: RoomHierarchy, room
         await cli.joinRoom(roomId, {
             viaServers: Array.from(hierarchy.viaMap.get(roomId) || []),
         });
-    } catch (err) {
-        SdkContextClass.instance.roomViewStore.showJoinRoomError(err, roomId);
+    } catch (err: unknown) {
+        if (err instanceof MatrixError) {
+            SdkContextClass.instance.roomViewStore.showJoinRoomError(err, roomId);
+        } else {
+            logger.warn("Got a non-MatrixError while joining room", err);
+            SdkContextClass.instance.roomViewStore.showJoinRoomError(
+                new MatrixError({
+                    error: _t("Unknown error"),
+                }),
+                roomId,
+            );
+        }
+
         return;
     }
 
@@ -417,7 +428,7 @@ interface IHierarchyLevelProps {
     parents: Set<string>;
     selectedMap?: Map<string, Set<string>>;
     onViewRoomClick(roomId: string, roomType?: RoomType): void;
-    onJoinRoomClick(roomId: string): Promise<unknown>;
+    onJoinRoomClick(roomId: string, parents: Set<string>): Promise<unknown>;
     onToggleClick?(parentId: string, childId: string): void;
 }
 
@@ -499,7 +510,7 @@ export const HierarchyLevel: React.FC<IHierarchyLevelProps> = ({
                     suggested={hierarchy.isSuggested(root.room_id, room.room_id)}
                     selected={selectedMap?.get(root.room_id)?.has(room.room_id)}
                     onViewRoomClick={() => onViewRoomClick(room.room_id, room.room_type as RoomType)}
-                    onJoinRoomClick={() => onJoinRoomClick(room.room_id)}
+                    onJoinRoomClick={() => onJoinRoomClick(room.room_id, newParents)}
                     hasPermissions={hasPermissions}
                     onToggleClick={onToggleClick ? () => onToggleClick(root.room_id, room.room_id) : undefined}
                 />
@@ -520,7 +531,7 @@ export const HierarchyLevel: React.FC<IHierarchyLevelProps> = ({
                         suggested={hierarchy.isSuggested(root.room_id, space.room_id)}
                         selected={selectedMap?.get(root.room_id)?.has(space.room_id)}
                         onViewRoomClick={() => onViewRoomClick(space.room_id, RoomType.Space)}
-                        onJoinRoomClick={() => onJoinRoomClick(space.room_id)}
+                        onJoinRoomClick={() => onJoinRoomClick(space.room_id, newParents)}
                         hasPermissions={hasPermissions}
                         onToggleClick={onToggleClick ? () => onToggleClick(root.room_id, space.room_id) : undefined}
                     >
@@ -827,7 +838,14 @@ const SpaceHierarchy: React.FC<IProps> = ({ space, initialText = "", showRoom, a
                                     selectedMap={selected}
                                     onToggleClick={hasPermissions ? onToggleClick : undefined}
                                     onViewRoomClick={(roomId, roomType) => showRoom(cli, hierarchy, roomId, roomType)}
-                                    onJoinRoomClick={(roomId) => joinRoom(cli, hierarchy, roomId)}
+                                    onJoinRoomClick={async (roomId, parents) => {
+                                        for (const parent of parents) {
+                                            if (cli.getRoom(parent)?.getMyMembership() !== "join") {
+                                                await joinRoom(cli, hierarchy, parent);
+                                            }
+                                        }
+                                        await joinRoom(cli, hierarchy, roomId);
+                                    }}
                                 />
                             </>
                         );
