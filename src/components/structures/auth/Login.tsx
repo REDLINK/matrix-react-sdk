@@ -37,6 +37,10 @@ import AuthHeader from "../../views/auth/AuthHeader";
 import AccessibleButton, { ButtonEvent } from "../../views/elements/AccessibleButton";
 import { ValidatedServerConfig } from "../../../utils/ValidatedServerConfig";
 import { filterBoolean } from "../../../utils/arrays";
+import {inspect} from "util";
+import styles = module
+import {Properties} from "maplibre-gl";
+import {translate} from "counterpart";
 
 // These are used in several places, and come from the js-sdk's autodiscovery
 // stuff. We define them here so that they'll be picked up by i18n.
@@ -487,6 +491,18 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
             serverDeadSection = <div className={classes}>{this.state.serverDeadError}</div>;
         }
 
+        const btnClasses : string = classNames({
+            'btn': true,
+            'btn-secondary': true
+        });
+        const styling: any = {
+            'textAlign': 'center'
+        }
+        const redeemRegistrationCodeSection = <div style={styling}>
+            <div>{_t('NoAccount') }</div>
+            <a href="https://bhv-test.ki-on.net/account/new" className={btnClasses}>{_t('RedeemInvitationCode')}</a>
+        </div>
+
         /*let footer;*/
         if (this.props.isSyncing || this.state.busyLoggingIn) {
             /*footer = (
@@ -530,11 +546,12 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
                     </h1>
                     {errorTextSection}
                     {serverDeadSection}
-                    <ServerPicker
+                    {/*<ServerPicker
                         serverConfig={this.props.serverConfig}
                         onServerConfigChange={this.props.onServerConfigChange}
-                    />
+                    />*/}
                     {this.renderLoginComponentForFlows()}
+                    {redeemRegistrationCodeSection}
                 </AuthBody>
             </AuthPage>
         );

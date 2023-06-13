@@ -712,5 +712,8 @@
     "Your password was successfully changed.": "Din adgangskode blev ændret.",
     "New Password": "Ny adgangskode",
     "Set a new custom sound": "Sæt en ny brugerdefineret lyd",
-    "Empty room": "Tomt rum"
+    "Empty room": "Tomt rum",
+    "Username": "Kita-Haven Account-ID",
+    "NoAccount": "Har du ikke en konto endnu?",
+    "RedeemInvitationCode": "Indløs invitationskoden her"
 }

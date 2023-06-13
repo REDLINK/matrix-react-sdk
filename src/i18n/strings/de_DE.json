@@ -755,6 +755,8 @@
     "You'll lose access to your encrypted messages": "Du wirst den Zugang zu deinen verschlüsselten Nachrichten verlieren",
     "This homeserver would like to make sure you are not a robot.": "Dieser Heim-Server möchte sicherstellen, dass du kein Roboter bist.",
     "Username": "Kita-Haven Account-ID",
+    "NoAccount": "Sie haben noch keinen Account?",
+    "RedeemInvitationCode": "Hier Einladungs-Code einlösen",
     "Change": "Ändern",
     "Email (optional)": "E-Mail-Adresse (optional)",
     "Phone (optional)": "Telefon (optional)",

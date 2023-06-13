@@ -1102,7 +1102,7 @@ export const SETTINGS: { [setting: string]: ISetting } = {
     },
     [UIFeature.BulkUnverifiedSessionsReminder]: {
         supportedLevels: LEVELS_UI_FEATURE,
-        default: true,
+        default: false,
     },
 
     // Electron-specific settings, they are stored by Electron and set/read over an IPC.
