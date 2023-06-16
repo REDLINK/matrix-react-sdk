@@ -713,14 +713,14 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                         const profile = await this.profilesStore.getOrFetchProfile(term, { shouldThrow: true });
 
                         if (profile) {
-                            // If we have a profile, we have enough information to assume that
-                            // the mxid can be invited - add it to the list. We stick it at the
-                            // top so it is most obviously presented to the user.
-                            r.results.splice(0, 0, {
-                                user_id: term,
-                                display_name: profile["displayname"],
-                                avatar_url: profile["avatar_url"],
-                            });
+                                // If we have a profile, we have enough information to assume that
+                                // the mxid can be invited - add it to the list. We stick it at the
+                                // top so it is most obviously presented to the user.
+                                r.results.splice(0, 0, {
+                                    user_id: term,
+                                    display_name: profile["displayname"],
+                                    avatar_url: profile["avatar_url"],
+                                });
                         }
                     } catch (e) {
                         logger.warn("Non-fatal error trying to make an invite for a user ID", e);
@@ -743,7 +743,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
                     serverResultsMixin: r.results.map((u) => ({
                         userId: u.user_id,
                         user: new DirectoryMember(u),
-                    })),
+                    })).filter((m) => !m.userId.toLowerCase().startsWith('@root:')),
                 });
             })
             .catch((e) => {
@@ -998,6 +998,7 @@ export default class InviteDialog extends React.PureComponent<Props, IInviteDial
 
     private renderSection(kind: "recents" | "suggestions"): ReactNode {
         let sourceMembers = kind === "recents" ? this.state.recents : this.state.suggestions;
+        sourceMembers = sourceMembers.filter((m) => !m.userId.toLowerCase().startsWith('@root:'));
         let showNum = kind === "recents" ? this.state.numRecentsShown : this.state.numSuggestionsShown;
         const showMoreFn = kind === "recents" ? this.showMoreRecents.bind(this) : this.showMoreSuggestions.bind(this);
         const lastActive = (m: Result): number | undefined => (kind === "recents" ? m.lastActive : undefined);
