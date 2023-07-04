@@ -188,6 +188,7 @@ export interface IConfigOptions {
     };
 
     rl_show_home_server: boolean;
+    rl_password_forgotten_link: string;
 
     feedback: {
         existing_issues_url: string;

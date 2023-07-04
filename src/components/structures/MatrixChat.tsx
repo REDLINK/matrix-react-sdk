@@ -1911,8 +1911,11 @@ export default class MatrixChat extends React.PureComponent<IProps, IState> {
     };
 
     private onForgotPasswordClick = (): void => {
-        window.location.href = 'https://bhv-test.ki-on.net/passwordreset';
-        //this.showScreen("forgot_password");
+        if(SdkConfig.get('rl_password_forgotten_link')) {
+            window.location.href = SdkConfig.get('rl_password_forgotten_link');
+        } else {
+            this.showScreen("forgot_password");
+        }
     };
 
     private onRegisterFlowComplete = (credentials: IMatrixClientCreds, password: string): Promise<void> => {
