@@ -36,6 +36,7 @@ import AuthHeader from "../../views/auth/AuthHeader";
 import { ValidatedServerConfig } from "../../../utils/ValidatedServerConfig";
 import { filterBoolean } from "../../../utils/arrays";
 import {ButtonEvent} from "../../views/elements/AccessibleButton";
+import SdkConfig from "../../../SdkConfig";
 
 // These are used in several places, and come from the js-sdk's autodiscovery
 // stuff. We define them here so that they'll be picked up by i18n.
@@ -495,7 +496,7 @@ export default class LoginComponent extends React.PureComponent<IProps, IState> 
         }
         const redeemRegistrationCodeSection = <div style={styling}>
             <div>{_t('NoAccount') }</div>
-            <a href="https://bhv-test.ki-on.net/account/new" className={btnClasses}>{_t('RedeemInvitationCode')}</a>
+            <a href={SdkConfig.get('rl_redeem_code_link')} className={btnClasses}>{_t('RedeemInvitationCode')}</a>
         </div>
 
         /*let footer;*/
