@@ -17,6 +17,7 @@ limitations under the License.
 /// <reference types="cypress" />
 
 import { HomeserverInstance } from "../../plugins/utils/homeserver";
+import { doTokenRegistration } from "./utils";
 
 describe("Login", () => {
     let homeserver: HomeserverInstance;
@@ -47,6 +48,30 @@ describe("Login", () => {
             // wait for the dialog to go away
             cy.get(".mx_ServerPickerDialog").should("not.exist");
 
+            cy.get(".mx_Spinner").should("not.exist");
+            cy.get(".mx_ServerPicker_server").should("have.text", homeserver.baseUrl);
+
+            cy.findByRole("button", { name: "Edit" }).click();
+
+            // select the default server again
+            cy.get(".mx_StyledRadioButton").first().click();
+            cy.findByRole("button", { name: "Continue" }).click();
+            cy.get(".mx_ServerPickerDialog").should("not.exist");
+            cy.get(".mx_Spinner").should("not.exist");
+            // name of default server
+            cy.get(".mx_ServerPicker_server").should("have.text", "server.invalid");
+
+            // switch back to the custom homeserver
+
+            cy.findByRole("button", { name: "Edit" }).click();
+            cy.findByRole("textbox", { name: "Other homeserver" }).type(homeserver.baseUrl);
+            cy.findByRole("button", { name: "Continue" }).click();
+            // wait for the dialog to go away
+            cy.get(".mx_ServerPickerDialog").should("not.exist");
+
+            cy.get(".mx_Spinner").should("not.exist");
+            cy.get(".mx_ServerPicker_server").should("have.text", homeserver.baseUrl);
+
             cy.findByRole("textbox", { name: "Username", timeout: 15000 }).should("be.visible");
             // Disabled because flaky - see https://github.com/vector-im/element-web/issues/24688
             //cy.percySnapshot("Login");
@@ -57,6 +82,37 @@ describe("Login", () => {
             cy.findByRole("button", { name: "Sign in" }).click();
 
             cy.url().should("contain", "/#/home", { timeout: 30000 });
+        });
+    });
+
+    // tests for old-style SSO login, in which we exchange tokens with Synapse, and Synapse talks to an auth server
+    describe("SSO login", () => {
+        beforeEach(() => {
+            cy.task("startOAuthServer")
+                .then((oAuthServerPort: number) => {
+                    return cy.startHomeserver({ template: "default", oAuthServerPort });
+                })
+                .then((data) => {
+                    homeserver = data;
+                });
+        });
+
+        afterEach(() => {
+            cy.task("stopOAuthServer");
+        });
+
+        it("logs in with SSO and lands on the home screen", () => {
+            // If this test fails with a screen showing "Timeout connecting to remote server", it is most likely due to
+            // your firewall settings: Synapse is unable to reach the OIDC server.
+            //
+            // If you are using ufw, try something like:
+            //    sudo ufw allow in on docker0
+            //
+            doTokenRegistration(homeserver.baseUrl);
+
+            // Eventually, we should end up at the home screen.
+            cy.url().should("contain", "/#/home", { timeout: 30000 });
+            cy.findByRole("heading", { name: "Welcome Alice" });
         });
     });
 

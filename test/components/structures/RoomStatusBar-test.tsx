@@ -16,10 +16,14 @@ limitations under the License.
 
 import React from "react";
 import { render } from "@testing-library/react";
-import { MatrixClient, PendingEventOrdering } from "matrix-js-sdk/src/client";
-import { EventStatus, MatrixEvent } from "matrix-js-sdk/src/models/event";
-import { Room } from "matrix-js-sdk/src/models/room";
-import { MatrixError } from "matrix-js-sdk/src/http-api";
+import {
+    MatrixClient,
+    PendingEventOrdering,
+    EventStatus,
+    MatrixEvent,
+    Room,
+    MatrixError,
+} from "matrix-js-sdk/src/matrix";
 
 import RoomStatusBar, { getUnsentMessages } from "../../../src/components/structures/RoomStatusBar";
 import MatrixClientContext from "../../../src/contexts/MatrixClientContext";
@@ -37,7 +41,7 @@ describe("RoomStatusBar", () => {
         jest.clearAllMocks();
 
         stubClient();
-        client = MatrixClientPeg.get();
+        client = MatrixClientPeg.safeGet();
         client.getSyncStateData = jest.fn().mockReturnValue({});
         room = new Room(ROOM_ID, client, client.getUserId()!, {
             pendingEventOrdering: PendingEventOrdering.Detached,

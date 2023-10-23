@@ -32,7 +32,7 @@ describe("BasicMessageComposer", () => {
 
     TestUtils.stubClient();
 
-    const client: MatrixClient = MatrixClientPeg.get();
+    const client: MatrixClient = MatrixClientPeg.safeGet();
 
     const roomId = "!1234567890:domain";
     const userId = client.getSafeUserId();
@@ -81,6 +81,34 @@ describe("BasicMessageComposer", () => {
             const transformedText = model.parts.map((part) => part.text).join("");
             expect(transformedText).toBe(after + " ");
         }
+    });
+
+    it("should not mangle shift-enter when the autocomplete is open", async () => {
+        const model = new EditorModel([], pc, renderer);
+        render(<BasicMessageComposer model={model} room={room} />);
+
+        const input = screen.getByRole("textbox");
+
+        await userEvent.type(input, "/plain foobar");
+        await userEvent.type(input, "{Shift>}{Enter}{/Shift}");
+        const transformedText = model.parts.map((part) => part.text).join("");
+        expect(transformedText).toBe("/plain foobar\n");
+    });
+
+    it("should escape single quote in placeholder", async () => {
+        const model = new EditorModel([], pc, renderer);
+        const composer = render(<BasicMessageComposer placeholder={"Don't"} model={model} room={room} />);
+        const input = composer.queryAllByRole("textbox");
+        const placeholder = input[0].style.getPropertyValue("--placeholder");
+        expect(placeholder).toMatch("'Don\\'t'");
+    });
+
+    it("should escape backslash in placeholder", async () => {
+        const model = new EditorModel([], pc, renderer);
+        const composer = render(<BasicMessageComposer placeholder={"w\\e"} model={model} room={room} />);
+        const input = composer.queryAllByRole("textbox");
+        const placeholder = input[0].style.getPropertyValue("--placeholder");
+        expect(placeholder).toMatch("'w\\\\e'");
     });
 });
 

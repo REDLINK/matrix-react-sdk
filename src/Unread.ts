@@ -14,13 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { Room } from "matrix-js-sdk/src/models/room";
-import { Thread } from "matrix-js-sdk/src/models/thread";
-import { MatrixEvent } from "matrix-js-sdk/src/models/event";
-import { EventType } from "matrix-js-sdk/src/@types/event";
-import { M_BEACON } from "matrix-js-sdk/src/@types/beacon";
+import { M_BEACON, Room, Thread, MatrixEvent, EventType, MatrixClient } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
-import { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import shouldHideEvent from "./shouldHideEvent";
 import { haveRendererForEvent } from "./events/EventTileFactory";
@@ -52,7 +47,7 @@ export function eventTriggersUnreadCount(client: MatrixClient, ev: MatrixEvent):
     }
 
     if (ev.isRedacted()) return false;
-    return haveRendererForEvent(ev, false /* hidden messages should never trigger unread counts anyways */);
+    return haveRendererForEvent(ev, client, false /* hidden messages should never trigger unread counts anyways */);
 }
 
 export function doesRoomHaveUnreadMessages(room: Room): boolean {
@@ -159,15 +154,13 @@ function makeHasReceipt(
         // If we found an event matching our receipt, then it's easy: this event
         // has a receipt if its ID is the same as the one in the receipt.
         return (ev) => ev.getId() == readUpToId;
-    } else {
-        // If we didn't, we have to guess by saying if this event is before the
-        // receipt's ts, then it we pretend it has a receipt.
-        const receipt = roomOrThread.getReadReceiptForUserId(myUserId);
-        if (receipt) {
-            const receiptTimestamp = receipt.data.ts;
-            return (ev) => ev.getTs() < receiptTimestamp;
-        } else {
-            return (_ev) => false;
-        }
     }
+
+    // If we didn't, we have to guess by saying if this event is before the
+    // receipt's ts, then it we pretend it has a receipt.
+    const receiptTs = roomOrThread.getReadReceiptForUserId(myUserId)?.data.ts ?? 0;
+    const unthreadedReceiptTs = roomOrThread.getLastUnthreadedReceiptFor(myUserId)?.ts ?? 0;
+    // We pick the more recent of the two receipts as the latest
+    const receiptTimestamp = Math.max(receiptTs, unthreadedReceiptTs);
+    return (ev) => ev.getTs() < receiptTimestamp;
 }

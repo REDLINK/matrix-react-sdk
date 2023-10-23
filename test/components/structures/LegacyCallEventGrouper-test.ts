@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { MatrixClient, MatrixEvent } from "matrix-js-sdk/src/matrix";
-import { EventType } from "matrix-js-sdk/src/@types/event";
+import { MatrixClient, MatrixEvent, EventType } from "matrix-js-sdk/src/matrix";
 import { CallState } from "matrix-js-sdk/src/webrtc/call";
 
 import { stubClient } from "../../test-utils";
@@ -30,7 +29,7 @@ let client: MatrixClient;
 describe("LegacyCallEventGrouper", () => {
     beforeEach(() => {
         stubClient();
-        client = MatrixClientPeg.get();
+        client = MatrixClientPeg.safeGet();
         client.getUserId = () => {
             return MY_USER_ID;
         };

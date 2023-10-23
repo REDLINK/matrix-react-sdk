@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 import React, { LegacyRef } from "react";
-import { MatrixEvent } from "matrix-js-sdk/src/models/event";
+import { MatrixEvent } from "matrix-js-sdk/src/matrix";
 
 import { MediaEventHelper } from "../../../utils/MediaEventHelper";
 import EditorStateTransfer from "../../../utils/EditorStateTransfer";
@@ -39,9 +39,9 @@ export interface IBodyProps {
     maxImageHeight?: number;
     replacingEventId?: string;
     editState?: EditorStateTransfer;
-    onMessageAllowed: () => void; // TODO: Docs
+    onMessageAllowed?: () => void; // TODO: Docs
     permalinkCreator?: RoomPermalinkCreator;
-    mediaEventHelper: MediaEventHelper;
+    mediaEventHelper?: MediaEventHelper;
 
     /*
     If present and `true`, the message has been marked as hidden pending moderation
@@ -55,4 +55,8 @@ export interface IBodyProps {
     getRelationsForEvent?: GetRelationsForEvent;
 
     ref?: React.RefObject<any> | LegacyRef<any>;
+
+    // Set to `true` to disable interactions (e.g. video controls) and to remove controls from the tab order.
+    // This may be useful when displaying a preview of the event.
+    inhibitInteraction?: boolean;
 }

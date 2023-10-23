@@ -52,7 +52,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
     public constructor(props: IProps) {
         super(props);
 
-        const client = MatrixClientPeg.get();
+        const client = MatrixClientPeg.safeGet();
         const room = client.getRoom(props.roomId);
         if (!room) throw new Error(`Expected a room for ID: ${props.roomId}`);
 
@@ -124,7 +124,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
         if (!this.isSaveEnabled()) return;
         this.setState({ profileFieldsTouched: {} });
 
-        const client = MatrixClientPeg.get();
+        const client = MatrixClientPeg.safeGet();
         const newState: Partial<IState> = {};
 
         // TODO: What do we do about errors?
@@ -226,10 +226,10 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
             profileSettingsButtons = (
                 <div className="mx_ProfileSettings_buttons">
                     <AccessibleButton onClick={this.cancelProfileChanges} kind="link" disabled={!this.isSaveEnabled()}>
-                        {_t("Cancel")}
+                        {_t("action|cancel")}
                     </AccessibleButton>
                     <AccessibleButton onClick={this.saveProfile} kind="primary" disabled={!this.isSaveEnabled()}>
-                        {_t("Save")}
+                        {_t("action|save")}
                     </AccessibleButton>
                 </div>
             );
@@ -248,7 +248,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
                 <div className="mx_ProfileSettings_profile">
                     <div className="mx_ProfileSettings_profile_controls">
                         <Field
-                            label={_t("Room Name")}
+                            label={_t("room_settings|general|name_field_label")}
                             type="text"
                             value={this.state.displayName}
                             autoComplete="off"
@@ -261,7 +261,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
                                 "mx_ProfileSettings_profile_controls_topic--room",
                             )}
                             id="profileTopic" // See: NewRoomIntro.tsx
-                            label={_t("Room Topic")}
+                            label={_t("room_settings|general|topic_field_label")}
                             disabled={!this.state.canSetTopic}
                             type="text"
                             value={this.state.topic}
@@ -273,7 +273,7 @@ export default class RoomProfileSettings extends React.Component<IProps, IState>
                     <AvatarSetting
                         avatarUrl={this.state.avatarUrl ?? undefined}
                         avatarName={this.state.displayName || this.props.roomId}
-                        avatarAltText={_t("Room avatar")}
+                        avatarAltText={_t("room_settings|general|avatar_field_label")}
                         uploadAvatar={this.state.canSetAvatar ? this.uploadAvatar : undefined}
                         removeAvatar={this.state.canSetAvatar ? this.removeAvatar : undefined}
                     />

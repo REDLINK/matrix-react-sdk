@@ -16,18 +16,20 @@ limitations under the License.
 
 import React from "react";
 import { fireEvent, render, RenderResult } from "@testing-library/react";
-import { EventStatus, MatrixEvent } from "matrix-js-sdk/src/models/event";
-import { Room } from "matrix-js-sdk/src/models/room";
 import {
+    EventStatus,
+    MatrixEvent,
+    Room,
     PendingEventOrdering,
     BeaconIdentifier,
     Beacon,
     getBeaconInfoIdentifier,
     EventType,
+    FeatureSupport,
+    Thread,
+    M_POLL_KIND_DISCLOSED,
 } from "matrix-js-sdk/src/matrix";
-import { M_POLL_KIND_DISCLOSED } from "matrix-js-sdk/src/@types/polls";
 import { PollStartEvent } from "matrix-js-sdk/src/extensible_events_v1/PollStartEvent";
-import { FeatureSupport, Thread } from "matrix-js-sdk/src/models/thread";
 import { mocked } from "jest-mock";
 
 import { MatrixClientPeg } from "../../../../src/MatrixClientPeg";
@@ -159,7 +161,7 @@ describe("MessageContextMenu", () => {
                 room_id: roomId,
             });
             pinnableEvent.event.event_id = "!3";
-            const client = MatrixClientPeg.get();
+            const client = MatrixClientPeg.safeGet();
             const room = makeDefaultRoom();
 
             // mock permission to allow adding pinned messages to room
@@ -204,7 +206,7 @@ describe("MessageContextMenu", () => {
                 room_id: roomId,
             });
             pinnableEvent.event.event_id = "!3";
-            const client = MatrixClientPeg.get();
+            const client = MatrixClientPeg.safeGet();
             const room = makeDefaultRoom();
 
             // make the event already pinned in the room
@@ -543,7 +545,7 @@ function createMenuWithContent(
 }
 
 function makeDefaultRoom(): Room {
-    return new Room(roomId, MatrixClientPeg.get(), "@user:example.com", {
+    return new Room(roomId, MatrixClientPeg.safeGet(), "@user:example.com", {
         pendingEventOrdering: PendingEventOrdering.Detached,
     });
 }
@@ -555,7 +557,7 @@ function createMenu(
     beacons: Map<BeaconIdentifier, Beacon> = new Map(),
     room: Room = makeDefaultRoom(),
 ): RenderResult {
-    const client = MatrixClientPeg.get();
+    const client = MatrixClientPeg.safeGet();
 
     // @ts-ignore illegally set private prop
     room.currentState.beacons = beacons;

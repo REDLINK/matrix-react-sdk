@@ -16,12 +16,15 @@ limitations under the License.
 
 import React, { createRef, ReactNode } from "react";
 import classNames from "classnames";
-import { IEventRelation, MatrixEvent } from "matrix-js-sdk/src/models/event";
-import { Room } from "matrix-js-sdk/src/models/room";
-import { RoomMember } from "matrix-js-sdk/src/models/room-member";
-import { EventType } from "matrix-js-sdk/src/@types/event";
+import {
+    IEventRelation,
+    MatrixEvent,
+    Room,
+    RoomMember,
+    EventType,
+    THREAD_RELATION_TYPE,
+} from "matrix-js-sdk/src/matrix";
 import { Optional } from "matrix-events-sdk";
-import { THREAD_RELATION_TYPE } from "matrix-js-sdk/src/models/thread";
 
 import { _t } from "../../../languageHandler";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
@@ -61,6 +64,7 @@ import { SdkContextClass } from "../../../contexts/SDKContext";
 import { VoiceBroadcastInfoState } from "../../../voice-broadcast";
 import { createCantStartVoiceMessageBroadcastDialog } from "../dialogs/CantStartVoiceMessageBroadcastDialog";
 import { UIFeature } from "../../../settings/UIFeature";
+import { formatTimeLeft } from "../../../DateUtils";
 
 let instanceCount = 0;
 
@@ -74,7 +78,7 @@ function SendButton(props: ISendButtonProps): JSX.Element {
         <AccessibleTooltipButton
             className="mx_MessageComposer_sendMessage"
             onClick={props.onClick}
-            title={props.title ?? _t("Send message")}
+            title={props.title ?? _t("composer|send_button_title")}
             data-testid="sendmessagebtn"
         />
     );
@@ -243,7 +247,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
 
     private waitForOwnMember(): void {
         // If we have the member already, do that
-        const me = this.props.room.getMember(MatrixClientPeg.get().getUserId()!);
+        const me = this.props.room.getMember(MatrixClientPeg.safeGet().getUserId()!);
         if (me) {
             this.setState({ me });
             return;
@@ -252,7 +256,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
         // The members should already be loading, and loadMembersIfNeeded
         // will return the promise for the existing operation
         this.props.room.loadMembersIfNeeded().then(() => {
-            const me = this.props.room.getMember(MatrixClientPeg.get().getSafeUserId()) ?? undefined;
+            const me = this.props.room.getMember(MatrixClientPeg.safeGet().getSafeUserId()) ?? undefined;
             this.setState({ me });
         });
     }
@@ -271,7 +275,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
         ev.preventDefault();
 
         const replacementRoomId = this.context.tombstone?.getContent()["replacement_room"];
-        const replacementRoom = MatrixClientPeg.get().getRoom(replacementRoomId);
+        const replacementRoom = MatrixClientPeg.safeGet().getRoom(replacementRoomId);
         let createEventId: string | undefined;
         if (replacementRoom) {
             const createEvent = replacementRoom.currentState.getStateEvents(EventType.RoomCreate, "");
@@ -299,19 +303,19 @@ export class MessageComposer extends React.Component<IProps, IState> {
         if (this.props.replyToEvent) {
             const replyingToThread = this.props.relation?.rel_type === THREAD_RELATION_TYPE.name;
             if (replyingToThread && this.props.e2eStatus) {
-                return _t("Reply to encrypted thread…");
+                return _t("composer|placeholder_thread_encrypted");
             } else if (replyingToThread) {
-                return _t("Reply to thread…");
+                return _t("composer|placeholder_thread");
             } else if (this.props.e2eStatus) {
-                return _t("Send an encrypted reply…");
+                return _t("composer|placeholder_reply_encrypted");
             } else {
-                return _t("Send a reply…");
+                return _t("composer|placeholder_reply");
             }
         } else {
             if (this.props.e2eStatus) {
-                return _t("Send an encrypted message…");
+                return _t("composer|placeholder_encrypted");
             } else {
-                return _t("Send a message…");
+                return _t("composer|placeholder");
             }
         }
     };
@@ -371,8 +375,8 @@ export class MessageComposer extends React.Component<IProps, IState> {
 
         const { isRichTextEnabled, composerContent } = this.state;
         const convertedContent = isRichTextEnabled
-            ? await richToPlain(composerContent)
-            : await plainToRich(composerContent);
+            ? await richToPlain(composerContent, false)
+            : await plainToRich(composerContent, false);
 
         this.setState({
             isRichTextEnabled: !isRichTextEnabled,
@@ -527,11 +531,11 @@ export class MessageComposer extends React.Component<IProps, IState> {
 
             const continuesLink = replacementRoomId ? (
                 <a
-                    href={makeRoomPermalink(MatrixClientPeg.get(), replacementRoomId)}
+                    href={makeRoomPermalink(MatrixClientPeg.safeGet(), replacementRoomId)}
                     className="mx_MessageComposer_roomReplaced_link"
                     onClick={this.onTombstoneClick}
                 >
-                    {_t("The conversation continues here.")}
+                    {_t("composer|room_upgraded_link")}
                 </a>
             ) : (
                 ""
@@ -547,7 +551,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
                             src={require("../../../../res/img/room_replaced.svg").default}
                         />
                         <span className="mx_MessageComposer_roomReplaced_header">
-                            {_t("This room has been replaced and is no longer active.")}
+                            {_t("composer|room_upgraded_notice")}
                         </span>
                         <br />
                         {continuesLink}
@@ -557,7 +561,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
         } else {
             controls.push(
                 <div key="controls_error" className="mx_MessageComposer_noperm_error">
-                    {_t("You do not have permission to post to this room")}
+                    {_t("composer|no_perms_notice")}
                 </div>,
             );
         }
@@ -566,11 +570,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
         if (this.state.recordingTimeLeftSeconds) {
             const secondsLeft = Math.round(this.state.recordingTimeLeftSeconds);
             recordingTooltip = (
-                <Tooltip
-                    id={this.tooltipId}
-                    label={_t("%(seconds)ss left", { seconds: secondsLeft })}
-                    alignment={Alignment.Top}
-                />
+                <Tooltip id={this.tooltipId} label={formatTimeLeft(secondsLeft)} alignment={Alignment.Top} />
             );
         }
 
@@ -588,7 +588,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
             />,
         );
 
-        const showSendButton = !this.state.isComposerEmpty || this.state.haveRecording;
+        const showSendButton = canSendMessages && (!this.state.isComposerEmpty || this.state.haveRecording);
 
         const classes = classNames({
             "mx_MessageComposer": true,
@@ -636,7 +636,7 @@ export class MessageComposer extends React.Component<IProps, IState> {
                                     onStartVoiceBroadcastClick={() => {
                                         setUpVoiceBroadcastPreRecording(
                                             this.props.room,
-                                            MatrixClientPeg.get(),
+                                            MatrixClientPeg.safeGet(),
                                             SdkContextClass.instance.voiceBroadcastPlaybacksStore,
                                             SdkContextClass.instance.voiceBroadcastRecordingsStore,
                                             SdkContextClass.instance.voiceBroadcastPreRecordingStore,
@@ -649,7 +649,9 @@ export class MessageComposer extends React.Component<IProps, IState> {
                                 <SendButton
                                     key="controls_send"
                                     onClick={this.sendMessage}
-                                    title={this.state.haveRecording ? _t("Send voice message") : undefined}
+                                    title={
+                                        this.state.haveRecording ? _t("composer|send_button_voice_message") : undefined
+                                    }
                                 />
                             )}
                         </div>

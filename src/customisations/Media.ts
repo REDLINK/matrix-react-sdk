@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { MatrixClient } from "matrix-js-sdk/src/client";
-import { ResizeMethod } from "matrix-js-sdk/src/@types/partials";
+import { MatrixClient, ResizeMethod } from "matrix-js-sdk/src/matrix";
 import { Optional } from "matrix-events-sdk";
 
 import { MatrixClientPeg } from "../MatrixClientPeg";
@@ -38,7 +37,7 @@ export class Media {
 
     // Per above, this constructor signature can be whatever is helpful for you.
     public constructor(private prepared: IPreparedMedia, client?: MatrixClient) {
-        this.client = client ?? MatrixClientPeg.get();
+        this.client = client ?? MatrixClientPeg.safeGet();
         if (!this.client) {
             throw new Error("No possible MatrixClient for media resolution. Please provide one or log in.");
         }
@@ -144,7 +143,7 @@ export class Media {
     public downloadSource(): Promise<Response> {
         const src = this.srcHttp;
         if (!src) {
-            throw new UserFriendlyError("Failed to download source media, no source url was found");
+            throw new UserFriendlyError("error|download_media");
         }
         return fetch(src);
     }

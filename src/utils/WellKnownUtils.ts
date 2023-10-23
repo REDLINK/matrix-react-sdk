@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { IClientWellKnown, MatrixClient } from "matrix-js-sdk/src/client";
+import { IClientWellKnown, MatrixClient } from "matrix-js-sdk/src/matrix";
 import { UnstableValue } from "matrix-js-sdk/src/NamespacedValue";
 
 const CALL_BEHAVIOUR_WK_KEY = "io.element.call_behaviour";
@@ -26,10 +26,18 @@ const EMBEDDED_PAGES_WK_PROPERTY = "io.element.embedded_pages";
 /* eslint-disable camelcase */
 export interface ICallBehaviourWellKnown {
     widget_build_url?: string;
+    ignore_dm?: boolean;
 }
 
 export interface IE2EEWellKnown {
     default?: boolean;
+    /**
+     * Forces the encryption to disabled for all new rooms
+     * When true, overrides configured 'default' behaviour
+     * Hides the option to enable encryption on room creation
+     * Disables the option to enable encryption in room settings for all new and existing rooms
+     */
+    force_disable?: boolean;
     secure_backup_required?: boolean;
     secure_backup_setup_methods?: SecureBackupSetupMethod[];
 }

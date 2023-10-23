@@ -15,8 +15,7 @@ limitations under the License.
 */
 
 import EventEmitter from "events";
-import { MatrixEvent, RoomStateEvent } from "matrix-js-sdk/src/matrix";
-import { RoomState } from "matrix-js-sdk/src/models/room-state";
+import { MatrixEvent, RoomStateEvent, RoomState } from "matrix-js-sdk/src/matrix";
 
 import { MatrixClientPeg } from "../MatrixClientPeg";
 import WidgetUtils from "../utils/WidgetUtils";
@@ -51,7 +50,7 @@ export default class ActiveWidgetStore extends EventEmitter {
     }
 
     public start(): void {
-        MatrixClientPeg.get().on(RoomStateEvent.Events, this.onRoomStateEvents);
+        MatrixClientPeg.safeGet().on(RoomStateEvent.Events, this.onRoomStateEvents);
     }
 
     public stop(): void {

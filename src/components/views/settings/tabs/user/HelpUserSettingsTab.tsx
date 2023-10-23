@@ -19,17 +19,12 @@ import { logger } from "matrix-js-sdk/src/logger";
 
 import AccessibleButton from "../../../elements/AccessibleButton";
 import { _t, getCurrentLanguage } from "../../../../../languageHandler";
-import { MatrixClientPeg } from "../../../../../MatrixClientPeg";
 import SdkConfig from "../../../../../SdkConfig";
 import createRoom from "../../../../../createRoom";
 import Modal from "../../../../../Modal";
 import PlatformPeg from "../../../../../PlatformPeg";
 import UpdateCheckButton from "../../UpdateCheckButton";
 import BugReportDialog from "../../../dialogs/BugReportDialog";
-import { OpenToTabPayload } from "../../../../../dispatcher/payloads/OpenToTabPayload";
-import { Action } from "../../../../../dispatcher/actions";
-import { UserTab } from "../../../dialogs/UserTab";
-import dis from "../../../../../dispatcher/dispatcher";
 import CopyableText from "../../../elements/CopyableText";
 import SettingsTab from "../SettingsTab";
 import { SettingsSection } from "../../shared/SettingsSection";
@@ -77,14 +72,14 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
     private getVersionInfo(): { appVersion: string; olmVersion: string } {
         const brand = SdkConfig.get().brand;
         const appVersion = this.state.appVersion || "unknown";
-        const olmVersionTuple = MatrixClientPeg.get().olmVersion;
+        const olmVersionTuple = this.context.olmVersion;
         const olmVersion = olmVersionTuple
             ? `${olmVersionTuple[0]}.${olmVersionTuple[1]}.${olmVersionTuple[2]}`
             : "<not-enabled>";
 
         return {
-            appVersion: `${_t("%(brand)s version:", { brand })} ${appVersion}`,
-            olmVersion: `${_t("Olm version:")} ${olmVersion}`,
+            appVersion: `${_t("setting|help_about|brand_version", { brand })} ${appVersion}`,
+            olmVersion: `${_t("setting|help_about|olm_version")} ${olmVersion}`,
         };
     }
 
@@ -94,12 +89,10 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
         // Dev note: please keep this log line, it's useful when troubleshooting a MatrixClient suddenly
         // stopping in the middle of the logs.
         logger.log("Clear cache & reload clicked");
-        MatrixClientPeg.get().stopClient();
-        MatrixClientPeg.get()
-            .store.deleteAllData()
-            .then(() => {
-                PlatformPeg.get()?.reload();
-            });
+        this.context.stopClient();
+        this.context.store.deleteAllData().then(() => {
+            PlatformPeg.get()?.reload();
+        });
     };
 
     private onBugReport = (): void => {
@@ -128,7 +121,7 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
         }
 
         return (
-            <SettingsSubsection heading={_t("Legal")}>
+            <SettingsSubsection heading={_t("common|legal")}>
                 <SettingsSubsectionText>{legalLinks}</SettingsSubsectionText>
             </SettingsSubsection>
         );
@@ -138,13 +131,12 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
         // Note: This is not translated because it is legal text.
         // Also, &nbsp; is ugly but necessary.
         return (
-            <SettingsSubsection heading={_t("Credits")}>
+            <SettingsSubsection heading={_t("common|credits")}>
                 <SettingsSubsectionText>
                     <ul>
                         <li>
                             {_t(
-                                "The <photo>default cover photo</photo> is © " +
-                                    "<author>Jesús Roncero</author> used under the terms of <terms>CC-BY-SA 4.0</terms>.",
+                                "credits|default_cover_photo",
                                 {},
                                 {
                                     photo: (sub) => (
@@ -173,8 +165,7 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
                         </li>
                         <li>
                             {_t(
-                                "The <colr>twemoji-colr</colr> font is © <author>Mozilla Foundation</author> " +
-                                    "used under the terms of <terms>Apache 2.0</terms>.",
+                                "credits|twemoji_colr",
                                 {},
                                 {
                                     colr: (sub) => (
@@ -201,9 +192,7 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
                         </li>
                         <li>
                             {_t(
-                                "The <twemoji>Twemoji</twemoji> emoji art is © " +
-                                    "<author>Twitter, Inc and other contributors</author> used under the terms of " +
-                                    "<terms>CC-BY 4.0</terms>.",
+                                "credits|twemoji",
                                 {},
                                 {
                                     twemoji: (sub) => (
@@ -235,37 +224,33 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
         return `${appVersion}\n${olmVersion}`;
     };
 
-    private onKeyboardShortcutsClicked = (): void => {
-        dis.dispatch<OpenToTabPayload>({
-            action: Action.ViewUserSettings,
-            initialTabId: UserTab.Keyboard,
-        });
-    };
-
     public render(): React.ReactNode {
         const brand = SdkConfig.get().brand;
 
         let faqText = _t(
-            "For help with using %(brand)s, click <a>here</a>.",
+            "setting|help_about|help_link",
             {
                 brand,
             },
             {
-                a: (sub) => <ExternalLink href="https://element.io/help">{sub}</ExternalLink>,
+                a: (sub) => <ExternalLink href={SdkConfig.get("help_url")}>{sub}</ExternalLink>,
             },
         );
         if (SdkConfig.get("welcome_user_id") && getCurrentLanguage().startsWith("en")) {
             faqText = (
                 <div>
                     {_t(
-                        "For help with using %(brand)s, click <a>here</a> or start a chat with our " +
-                            "bot using the button below.",
+                        "setting|help_about|help_link_chat_bot",
                         {
                             brand,
                         },
                         {
                             a: (sub) => (
-                                <ExternalLink href="https://element.io/help" rel="noreferrer noopener" target="_blank">
+                                <ExternalLink
+                                    href={SdkConfig.get("help_url")}
+                                    rel="noreferrer noopener"
+                                    target="_blank"
+                                >
                                     {sub}
                                 </ExternalLink>
                             ),
@@ -273,7 +258,7 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
                     )}
                     <div>
                         <AccessibleButton onClick={this.onStartBotChat} kind="primary">
-                            {_t("Chat with %(brand)s Bot", { brand })}
+                            {_t("setting|help_about|chat_bot", { brand })}
                         </AccessibleButton>
                     </div>
                 </div>
@@ -289,32 +274,20 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
         if (SdkConfig.get().bug_report_endpoint_url) {
             bugReportingSection = (
                 <SettingsSubsection
-                    heading={_t("Bug reporting")}
+                    heading={_t("bug_reporting|title")}
                     description={
                         <>
-                            <SettingsSubsectionText>
-                                {_t(
-                                    "If you've submitted a bug via GitHub, debug logs can help " +
-                                        "us track down the problem. ",
-                                )}
-                            </SettingsSubsectionText>
-                            {_t(
-                                "Debug logs contain application " +
-                                    "usage data including your username, the IDs or aliases of " +
-                                    "the rooms you have visited, which UI elements you " +
-                                    "last interacted with, and the usernames of other users. " +
-                                    "They do not contain messages.",
-                            )}
+                            <SettingsSubsectionText>{_t("bug_reporting|introduction")}</SettingsSubsectionText>
+                            {_t("bug_reporting|description")}
                         </>
                     }
                 >
                     <AccessibleButton onClick={this.onBugReport} kind="primary">
-                        {_t("Submit debug logs")}
+                        {_t("bug_reporting|submit_debug_logs")}
                     </AccessibleButton>
                     <SettingsSubsectionText>
                         {_t(
-                            "To report a Matrix-related security issue, please read the Matrix.org " +
-                                "<a>Security Disclosure Policy</a>.",
+                            "bug_reporting|matrix_security_issue",
                             {},
                             {
                                 a: (sub) => (
@@ -333,14 +306,10 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
 
         return (
             <SettingsTab>
-                <SettingsSection heading={_t("Help & About")}>
+                <SettingsSection heading={_t("setting|help_about|title")}>
                     {bugReportingSection}
-                    <SettingsSubsection heading={_t("FAQ")} description={faqText}>
-                        <AccessibleButton kind="primary" onClick={this.onKeyboardShortcutsClicked}>
-                            {_t("Keyboard Shortcuts")}
-                        </AccessibleButton>
-                    </SettingsSubsection>
-                    <SettingsSubsection heading={_t("Versions")}>
+                    <SettingsSubsection heading={_t("common|faq")} description={faqText} />
+                    <SettingsSubsection heading={_t("setting|help_about|versions")}>
                         <SettingsSubsectionText>
                             <CopyableText getTextToCopy={this.getVersionTextToCopy}>
                                 {appVersion}
@@ -353,24 +322,24 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
                     </SettingsSubsection>
                     {this.renderLegal()}
                     {this.renderCredits()}
-                    <SettingsSubsection heading={_t("Advanced")}>
+                    <SettingsSubsection heading={_t("common|advanced")}>
                         <SettingsSubsectionText>
                             {_t(
-                                "Homeserver is <code>%(homeserverUrl)s</code>",
+                                "setting|help_about|homeserver",
                                 {
-                                    homeserverUrl: MatrixClientPeg.get().getHomeserverUrl(),
+                                    homeserverUrl: this.context.getHomeserverUrl(),
                                 },
                                 {
                                     code: (sub) => <code>{sub}</code>,
                                 },
                             )}
                         </SettingsSubsectionText>
-                        {MatrixClientPeg.get().getIdentityServerUrl() && (
+                        {this.context.getIdentityServerUrl() && (
                             <SettingsSubsectionText>
                                 {_t(
-                                    "Identity server is <code>%(identityServerUrl)s</code>",
+                                    "setting|help_about|identity_server",
                                     {
-                                        identityServerUrl: MatrixClientPeg.get().getIdentityServerUrl(),
+                                        identityServerUrl: this.context.getIdentityServerUrl(),
                                     },
                                     {
                                         code: (sub) => <code>{sub}</code>,
@@ -380,20 +349,17 @@ export default class HelpUserSettingsTab extends React.Component<IProps, IState>
                         )}
                         <SettingsSubsectionText>
                             <details>
-                                <summary>{_t("Access Token")}</summary>
-                                <b>
-                                    {_t(
-                                        "Your access token gives full access to your account." +
-                                            " Do not share it with anyone.",
-                                    )}
-                                </b>
-                                <CopyableText getTextToCopy={() => MatrixClientPeg.get().getAccessToken()}>
-                                    {MatrixClientPeg.get().getAccessToken()}
+                                <summary className="mx_HelpUserSettingsTab_accessTokenDetails">
+                                    {_t("common|access_token")}
+                                </summary>
+                                <b>{_t("setting|help_about|access_token_detail")}</b>
+                                <CopyableText getTextToCopy={() => this.context.getAccessToken()}>
+                                    {this.context.getAccessToken()}
                                 </CopyableText>
                             </details>
                         </SettingsSubsectionText>
                         <AccessibleButton onClick={this.onClearCacheAndReload} kind="danger">
-                            {_t("Clear cache and reload")}
+                            {_t("setting|help_about|clear_cache_reload")}
                         </AccessibleButton>
                     </SettingsSubsection>
                 </SettingsSection>

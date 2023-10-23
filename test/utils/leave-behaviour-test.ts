@@ -15,8 +15,7 @@ limitations under the License.
 */
 
 import { mocked, Mocked } from "jest-mock";
-import { MatrixClient } from "matrix-js-sdk/src/client";
-import { Room } from "matrix-js-sdk/src/models/room";
+import { MatrixClient, Room } from "matrix-js-sdk/src/matrix";
 
 import { MatrixClientPeg } from "../../src/MatrixClientPeg";
 import { mkRoom, resetAsyncStoreWithClient, setupAsyncStoreWithClient, stubClient } from "../test-utils";
@@ -40,7 +39,7 @@ describe("leaveRoomBehaviour", () => {
 
     beforeEach(async () => {
         stubClient();
-        client = mocked(MatrixClientPeg.get());
+        client = mocked(MatrixClientPeg.safeGet());
         DMRoomMap.makeShared(client);
 
         room = mkRoom(client, "!1:example.org");

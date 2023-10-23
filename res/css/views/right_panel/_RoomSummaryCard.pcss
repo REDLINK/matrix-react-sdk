@@ -30,17 +30,20 @@ limitations under the License.
 
         .mx_RoomSummaryCard_roomName {
             margin: $spacing-12 0 $spacing-4;
-            font-weight: var(--font-semi-bold);
+            font-weight: var(--cpd-font-weight-semibold);
+            font-size: $font-17px;
         }
 
         .mx_RoomSummaryCard_alias {
-            font-size: $font-13px;
+            font: var(--cpd-font-body-md-regular);
             color: $secondary-content;
             text-overflow: ellipsis;
         }
 
         .mx_RoomSummaryCard_avatar {
-            display: inline-flex;
+            display: flex;
+            justify-content: center;
+            align-items: center;
 
             .mx_RoomSummaryCard_e2ee {
                 display: inline-block;
@@ -49,7 +52,6 @@ limitations under the License.
                 height: 54px;
                 border-radius: 50%;
                 background-color: #737d8c;
-                margin-top: -3px; /* alignment */
                 margin-left: -10px; /* overlap */
                 border: 3px solid $dark-panel-bg-color;
 
@@ -121,13 +123,14 @@ limitations under the License.
                 padding: 10px 48px 10px 12px; /* based on typical mx_RoomSummaryCard_Button padding */
                 text-overflow: ellipsis;
                 overflow: hidden;
-
-                .mx_BaseAvatar_image {
-                    vertical-align: top;
-                    margin-right: 12px;
-                }
-
+                display: flex;
+                justify-content: center;
                 span {
+                    /* Center aligned and Spacing matched with the About section above the Widgets section */
+                    margin-right: 10px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
                     color: $primary-content;
                 }
             }
@@ -237,7 +240,7 @@ limitations under the License.
         margin-top: 12px;
         margin-bottom: 12px;
         font-size: $font-13px;
-        font-weight: var(--font-semi-bold);
+        font-weight: var(--cpd-font-weight-semibold);
     }
 }
 
@@ -271,4 +274,8 @@ limitations under the License.
 
 .mx_RoomSummaryCard_icon_poll::before {
     mask-image: url("$(res)/img/element-icons/room/composer/poll.svg");
+}
+
+.mx_RoomSummaryCard_icon_search::before {
+    mask-image: url("$(res)/img/element-icons/room/search-inset.svg");
 }

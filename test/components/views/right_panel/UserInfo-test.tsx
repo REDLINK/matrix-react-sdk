@@ -27,11 +27,16 @@ import {
     EventType,
     CryptoApi,
     DeviceVerificationStatus,
+    Device,
 } from "matrix-js-sdk/src/matrix";
-import { Phase, VerificationRequest } from "matrix-js-sdk/src/crypto/verification/request/VerificationRequest";
-import { UserTrustLevel } from "matrix-js-sdk/src/crypto/CrossSigning";
-import { Device } from "matrix-js-sdk/src/models/device";
+import {
+    Phase,
+    VerificationRequest,
+    VerificationRequestEvent,
+} from "matrix-js-sdk/src/crypto/verification/request/VerificationRequest";
 import { defer } from "matrix-js-sdk/src/utils";
+import { EventEmitter } from "events";
+import { UserVerificationStatus } from "matrix-js-sdk/src/crypto-api";
 
 import UserInfo, {
     BanToggleButton,
@@ -55,6 +60,7 @@ import Modal from "../../../../src/Modal";
 import { E2EStatus } from "../../../../src/utils/ShieldUtils";
 import { DirectoryMember, startDmOnFirstMessage } from "../../../../src/utils/direct-messages";
 import { clearAllModals, flushPromises } from "../../../test-utils";
+import ErrorDialog from "../../../../src/components/views/dialogs/ErrorDialog";
 
 jest.mock("../../../../src/utils/direct-messages", () => ({
     ...jest.requireActual("../../../../src/utils/direct-messages"),
@@ -128,6 +134,8 @@ beforeEach(() => {
     mockCrypto = mocked({
         getDeviceVerificationStatus: jest.fn(),
         getUserDeviceInfo: jest.fn(),
+        userHasCrossSigningKeys: jest.fn().mockResolvedValue(false),
+        getUserVerificationStatus: jest.fn(),
     } as unknown as CryptoApi);
 
     mockClient = mocked({
@@ -149,28 +157,34 @@ beforeEach(() => {
         currentState: {
             on: jest.fn(),
         },
-        checkUserTrust: jest.fn(),
         getRoom: jest.fn(),
         credentials: {},
         setPowerLevel: jest.fn(),
         downloadKeys: jest.fn(),
-        getStoredDevicesForUser: jest.fn(),
         getCrypto: jest.fn().mockReturnValue(mockCrypto),
-        getStoredCrossSigningForUser: jest.fn(),
     } as unknown as MatrixClient);
 
     jest.spyOn(MatrixClientPeg, "get").mockReturnValue(mockClient);
+    jest.spyOn(MatrixClientPeg, "safeGet").mockReturnValue(mockClient);
 });
 
 describe("<UserInfo />", () => {
-    const verificationRequest = {
-        pending: true,
-        on: jest.fn(),
-        phase: Phase.Ready,
-        channel: { transactionId: 1 },
-        otherPartySupportsMethod: jest.fn(),
-        off: jest.fn(),
-    } as unknown as VerificationRequest;
+    class MockVerificationRequest extends EventEmitter {
+        pending = true;
+        phase: Phase = Phase.Ready;
+        cancellationCode: string | null = null;
+
+        constructor(opts: Partial<VerificationRequest>) {
+            super();
+            Object.assign(this, {
+                channel: { transactionId: 1 },
+                otherPartySupportsMethod: jest.fn(),
+                generateQRCode: jest.fn().mockReturnValue(new Promise(() => {})),
+                ...opts,
+            });
+        }
+    }
+    let verificationRequest: MockVerificationRequest;
 
     const defaultProps = {
         user: defaultUser,
@@ -188,6 +202,15 @@ describe("<UserInfo />", () => {
             wrapper: Wrapper,
         });
     };
+
+    beforeEach(() => {
+        verificationRequest = new MockVerificationRequest({});
+    });
+
+    afterEach(async () => {
+        await clearAllModals();
+        jest.clearAllMocks();
+    });
 
     it("closes on close button click", async () => {
         renderComponent();
@@ -220,6 +243,42 @@ describe("<UserInfo />", () => {
             // the verificationRequest has phase of Phase.Ready but .otherPartySupportsMethod
             // will not return true, so we expect to see the noCommonMethod error from VerificationPanel
             expect(screen.getByText(/try with a different client/i)).toBeInTheDocument();
+        });
+
+        it("should show error modal when the verification request is cancelled with a mismatch", () => {
+            renderComponent({ phase: RightPanelPhases.EncryptionPanel, verificationRequest });
+
+            const spy = jest.spyOn(Modal, "createDialog");
+            act(() => {
+                verificationRequest.phase = Phase.Cancelled;
+                verificationRequest.cancellationCode = "m.key_mismatch";
+                verificationRequest.emit(VerificationRequestEvent.Change);
+            });
+            expect(spy).toHaveBeenCalledWith(
+                ErrorDialog,
+                expect.objectContaining({ title: "Your messages are not secure" }),
+            );
+        });
+
+        it("should not show error modal when the verification request is changed for some other reason", () => {
+            renderComponent({ phase: RightPanelPhases.EncryptionPanel, verificationRequest });
+
+            const spy = jest.spyOn(Modal, "createDialog");
+
+            // change to "started"
+            act(() => {
+                verificationRequest.phase = Phase.Started;
+                verificationRequest.emit(VerificationRequestEvent.Change);
+            });
+
+            // cancelled for some other reason
+            act(() => {
+                verificationRequest.phase = Phase.Cancelled;
+                verificationRequest.cancellationCode = "changed my mind";
+                verificationRequest.emit(VerificationRequestEvent.Change);
+            });
+
+            expect(spy).not.toHaveBeenCalled();
         });
 
         it("renders close button correctly when encryption panel with a pending verification request", () => {
@@ -266,8 +325,8 @@ describe("<UserInfo />", () => {
     describe("with crypto enabled", () => {
         beforeEach(() => {
             mockClient.isCryptoEnabled.mockReturnValue(true);
-            mockClient.checkUserTrust.mockReturnValue(new UserTrustLevel(false, false, false));
             mockClient.doesServerSupportUnstableFeature.mockResolvedValue(true);
+            mockCrypto.getUserVerificationStatus.mockResolvedValue(new UserVerificationStatus(false, false, false));
 
             const device = new Device({
                 deviceId: "d1",
@@ -299,6 +358,8 @@ describe("<UserInfo />", () => {
         });
 
         it("renders <BasicUserInfo />", async () => {
+            mockCrypto.getUserVerificationStatus.mockResolvedValue(new UserVerificationStatus(false, false, false));
+
             const { container } = renderComponent({
                 phase: RightPanelPhases.SpaceMemberInfo,
                 verificationRequest,
@@ -318,7 +379,7 @@ describe("<UserInfo />", () => {
         });
 
         it("renders unverified user info", async () => {
-            mockClient.checkUserTrust.mockReturnValue(new UserTrustLevel(false, false, false));
+            mockCrypto.getUserVerificationStatus.mockResolvedValue(new UserVerificationStatus(false, false, false));
             renderComponent({ room: mockRoom });
             await act(flushPromises);
 
@@ -329,7 +390,7 @@ describe("<UserInfo />", () => {
         });
 
         it("renders verified user info", async () => {
-            mockClient.checkUserTrust.mockReturnValue(new UserTrustLevel(true, false, false));
+            mockCrypto.getUserVerificationStatus.mockResolvedValue(new UserVerificationStatus(true, false, false));
             renderComponent({ room: mockRoom });
             await act(flushPromises);
 
@@ -385,6 +446,7 @@ describe("<DeviceItem />", () => {
     const defaultProps = {
         userId: defaultUserId,
         device,
+        isUserVerified: false,
     };
 
     const renderComponent = (props = {}) => {
@@ -397,9 +459,6 @@ describe("<DeviceItem />", () => {
         });
     };
 
-    const setMockUserTrust = (isVerified = false) => {
-        mockClient.checkUserTrust.mockReturnValue({ isVerified: () => isVerified } as UserTrustLevel);
-    };
     const setMockDeviceTrust = (isVerified = false, isCrossSigningVerified = false) => {
         mockCrypto.getDeviceVerificationStatus.mockResolvedValue({
             isVerified: () => isVerified,
@@ -410,13 +469,11 @@ describe("<DeviceItem />", () => {
     const mockVerifyDevice = jest.spyOn(mockVerification, "verifyDevice");
 
     beforeEach(() => {
-        setMockUserTrust();
         setMockDeviceTrust();
     });
 
     afterEach(() => {
         mockCrypto.getDeviceVerificationStatus.mockReset();
-        mockClient.checkUserTrust.mockReset();
         mockVerifyDevice.mockClear();
     });
 
@@ -433,8 +490,7 @@ describe("<DeviceItem />", () => {
     });
 
     it("with verified user only, displays button with a 'Not trusted' label", async () => {
-        setMockUserTrust(true);
-        renderComponent();
+        renderComponent({ isUserVerified: true });
         await act(flushPromises);
 
         expect(screen.getByRole("button", { name: `${device.displayName} Not trusted` })).toBeInTheDocument();
@@ -450,24 +506,28 @@ describe("<DeviceItem />", () => {
     });
 
     it("when userId is the same as userId from client, uses isCrossSigningVerified to determine if button is shown", async () => {
+        const deferred = defer<DeviceVerificationStatus>();
+        mockCrypto.getDeviceVerificationStatus.mockReturnValue(deferred.promise);
+
         mockClient.getSafeUserId.mockReturnValueOnce(defaultUserId);
         mockClient.getUserId.mockReturnValueOnce(defaultUserId);
         renderComponent();
         await act(flushPromises);
 
         // set trust to be false for isVerified, true for isCrossSigningVerified
-        setMockDeviceTrust(false, true);
+        deferred.resolve({
+            isVerified: () => false,
+            crossSigningVerified: true,
+        } as DeviceVerificationStatus);
 
+        await expect(screen.findByText(device.displayName!)).resolves.toBeInTheDocument();
         // expect to see no button in this case
-        // TODO `toBeInTheDocument` is not called, if called the test is failing
-        expect(screen.queryByRole("button")).not.toBeInTheDocument;
-        expect(screen.getByText(device.displayName!)).toBeInTheDocument();
+        expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });
 
     it("with verified user and device, displays no button and a 'Trusted' label", async () => {
-        setMockUserTrust(true);
         setMockDeviceTrust(true);
-        renderComponent();
+        renderComponent({ isUserVerified: true });
         await act(flushPromises);
 
         expect(screen.queryByRole("button")).not.toBeInTheDocument();
@@ -843,7 +903,13 @@ describe("<RoomKickButton />", () => {
 
     let defaultProps: Parameters<typeof RoomKickButton>[0];
     beforeEach(() => {
-        defaultProps = { room: mockRoom, member: defaultMember, startUpdating: jest.fn(), stopUpdating: jest.fn() };
+        defaultProps = {
+            room: mockRoom,
+            member: defaultMember,
+            startUpdating: jest.fn(),
+            stopUpdating: jest.fn(),
+            isUpdating: false,
+        };
     });
 
     const renderComponent = (props = {}) => {
@@ -944,7 +1010,13 @@ describe("<BanToggleButton />", () => {
     const memberWithBanMembership = { ...defaultMember, membership: "ban" };
     let defaultProps: Parameters<typeof BanToggleButton>[0];
     beforeEach(() => {
-        defaultProps = { room: mockRoom, member: defaultMember, startUpdating: jest.fn(), stopUpdating: jest.fn() };
+        defaultProps = {
+            room: mockRoom,
+            member: defaultMember,
+            startUpdating: jest.fn(),
+            stopUpdating: jest.fn(),
+            isUpdating: false,
+        };
     });
 
     const renderComponent = (props = {}) => {
@@ -1072,6 +1144,7 @@ describe("<RoomAdminToolsContainer />", () => {
         defaultProps = {
             room: mockRoom,
             member: defaultMember,
+            isUpdating: false,
             startUpdating: jest.fn(),
             stopUpdating: jest.fn(),
             powerLevels: {},
@@ -1134,7 +1207,43 @@ describe("<RoomAdminToolsContainer />", () => {
             powerLevels: { events: { "m.room.power_levels": 1 } },
         });
 
-        expect(screen.getByText(/mute/i)).toBeInTheDocument();
+        const button = screen.getByText(/mute/i);
+        expect(button).toBeInTheDocument();
+        fireEvent.click(button);
+        expect(defaultProps.startUpdating).toHaveBeenCalled();
+    });
+
+    it("should disable buttons when isUpdating=true", () => {
+        const mockMeMember = new RoomMember(mockRoom.roomId, "arbitraryId");
+        mockMeMember.powerLevel = 51; // defaults to 50
+        mockRoom.getMember.mockReturnValueOnce(mockMeMember);
+
+        const defaultMemberWithPowerLevelAndJoinMembership = { ...defaultMember, powerLevel: 0, membership: "join" };
+
+        renderComponent({
+            member: defaultMemberWithPowerLevelAndJoinMembership,
+            powerLevels: { events: { "m.room.power_levels": 1 } },
+            isUpdating: true,
+        });
+
+        const button = screen.getByText(/mute/i);
+        expect(button).toBeInTheDocument();
+        expect(button).toHaveAttribute("disabled");
+        expect(button).toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("should not show mute button for one's own member", () => {
+        const mockMeMember = new RoomMember(mockRoom.roomId, mockClient.getSafeUserId());
+        mockMeMember.powerLevel = 51; // defaults to 50
+        mockRoom.getMember.mockReturnValueOnce(mockMeMember);
+
+        renderComponent({
+            member: mockMeMember,
+            powerLevels: { events: { "m.room.power_levels": 100 } },
+        });
+
+        const button = screen.queryByText(/mute/i);
+        expect(button).not.toBeInTheDocument();
     });
 });
 

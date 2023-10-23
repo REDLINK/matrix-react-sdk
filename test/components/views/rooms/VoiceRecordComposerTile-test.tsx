@@ -27,7 +27,6 @@ import { RoomPermalinkCreator } from "../../../../src/utils/permalinks/Permalink
 import { VoiceRecordingStore } from "../../../../src/stores/VoiceRecordingStore";
 import { PlaybackClock } from "../../../../src/audio/PlaybackClock";
 import { mkEvent } from "../../../test-utils";
-import SettingsStore from "../../../../src/settings/SettingsStore";
 
 jest.mock("../../../../src/utils/local-room", () => ({
     doMaybeLocalRoomAction: jest.fn(),
@@ -56,6 +55,7 @@ describe("<VoiceRecordComposerTile/>", () => {
             sendMessage: jest.fn(),
         } as unknown as MatrixClient;
         MatrixClientPeg.get = () => mockClient;
+        MatrixClientPeg.safeGet = () => mockClient;
 
         const room = {
             roomId,
@@ -102,10 +102,6 @@ describe("<VoiceRecordComposerTile/>", () => {
                 return fn(roomId);
             },
         );
-
-        jest.spyOn(SettingsStore, "getValue").mockImplementation(
-            (settingName) => settingName === "feature_intentional_mentions",
-        );
     });
 
     describe("send", () => {
@@ -134,7 +130,7 @@ describe("<VoiceRecordComposerTile/>", () => {
                 "org.matrix.msc1767.text": "Voice message",
                 "org.matrix.msc3245.voice": {},
                 "url": "mxc://example.com/voice",
-                "org.matrix.msc3952.mentions": {},
+                "m.mentions": {},
             });
         });
 
@@ -188,7 +184,7 @@ describe("<VoiceRecordComposerTile/>", () => {
                         event_id: replyToEvent.getId(),
                     },
                 },
-                "org.matrix.msc3952.mentions": { user_ids: ["@bob:test"] },
+                "m.mentions": { user_ids: ["@bob:test"] },
             });
         });
     });

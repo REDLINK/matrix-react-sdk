@@ -15,8 +15,7 @@ limitations under the License.
 */
 
 import { mocked, MockedObject } from "jest-mock";
-import { MatrixClient } from "matrix-js-sdk/src/client";
-import { RoomMember } from "matrix-js-sdk/src/models/room-member";
+import { MatrixClient, RoomMember } from "matrix-js-sdk/src/matrix";
 
 import { stubClient } from "../../test-utils";
 import { MatrixClientPeg } from "../../../src/MatrixClientPeg";
@@ -36,7 +35,7 @@ describe("RightPanelStore", () => {
     let cli: MockedObject<MatrixClient>;
     beforeEach(() => {
         stubClient();
-        cli = mocked(MatrixClientPeg.get());
+        cli = mocked(MatrixClientPeg.safeGet());
         DMRoomMap.makeShared(cli);
 
         // Make sure we start with a clean store

@@ -15,8 +15,7 @@ limitations under the License.
 */
 
 import React from "react";
-import { SERVICE_TYPES } from "matrix-js-sdk/src/service-types";
-import { createClient, MatrixClient, MatrixError } from "matrix-js-sdk/src/matrix";
+import { SERVICE_TYPES, createClient, MatrixClient, MatrixError } from "matrix-js-sdk/src/matrix";
 import { logger } from "matrix-js-sdk/src/logger";
 
 import { MatrixClientPeg } from "./MatrixClientPeg";
@@ -59,7 +58,7 @@ export default class IdentityAuthClient {
     }
 
     private get matrixClient(): MatrixClient {
-        return this.tempClient ? this.tempClient : MatrixClientPeg.get();
+        return this.tempClient ? this.tempClient : MatrixClientPeg.safeGet();
     }
 
     private writeToken(): void {
@@ -74,10 +73,6 @@ export default class IdentityAuthClient {
     private readToken(): string | null {
         if (this.tempClient) return null; // temporary client: ignore
         return window.localStorage.getItem("mx_is_access_token");
-    }
-
-    public hasCredentials(): boolean {
-        return Boolean(this.accessToken);
     }
 
     // Returns a promise that resolves to the access_token string from the IS
@@ -141,24 +136,22 @@ export default class IdentityAuthClient {
             !(await doesIdentityServerHaveTerms(this.matrixClient, identityServerUrl))
         ) {
             const { finished } = Modal.createDialog(QuestionDialog, {
-                title: _t("Identity server has no terms of service"),
+                title: _t("terms|identity_server_no_terms_title"),
                 description: (
                     <div>
                         <p>
                             {_t(
-                                "This action requires accessing the default identity server " +
-                                    "<server /> to validate an email address or phone number, " +
-                                    "but the server does not have any terms of service.",
+                                "terms|identity_server_no_terms_description_1",
                                 {},
                                 {
                                     server: () => <b>{abbreviateUrl(identityServerUrl)}</b>,
                                 },
                             )}
                         </p>
-                        <p>{_t("Only continue if you trust the owner of the server.")}</p>
+                        <p>{_t("terms|identity_server_no_terms_description_2")}</p>
                     </div>
                 ),
-                button: _t("Trust"),
+                button: _t("action|trust"),
             });
             const [confirmed] = await finished;
             if (confirmed) {
@@ -176,7 +169,7 @@ export default class IdentityAuthClient {
     }
 
     public async registerForToken(check = true): Promise<string> {
-        const hsOpenIdToken = await MatrixClientPeg.get().getOpenIdToken();
+        const hsOpenIdToken = await MatrixClientPeg.safeGet().getOpenIdToken();
         // XXX: The spec is `token`, but we used `access_token` for a Sydent release.
         const { access_token: accessToken, token } = await this.matrixClient.registerWithIdentityServer(hsOpenIdToken);
         const identityAccessToken = token ? token : accessToken;

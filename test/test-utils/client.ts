@@ -64,6 +64,8 @@ export class MockClientWithEventEmitter extends EventEmitter {
         getUserId: jest.fn().mockReturnValue(aliceId),
     });
  * ```
+ *
+ * See also {@link stubClient} which does something similar but uses a more complete mock client.
  */
 export const getMockClientWithEventEmitter = (
     mockProperties: Partial<Record<keyof MatrixClient, unknown>>,
@@ -71,6 +73,7 @@ export const getMockClientWithEventEmitter = (
     const mock = mocked(new MockClientWithEventEmitter(mockProperties) as unknown as MatrixClient);
 
     jest.spyOn(MatrixClientPeg, "get").mockReturnValue(mock);
+    jest.spyOn(MatrixClientPeg, "safeGet").mockReturnValue(mock);
 
     // @ts-ignore simplified test stub
     mock.canSupport = new Map();
@@ -80,7 +83,10 @@ export const getMockClientWithEventEmitter = (
     return mock;
 };
 
-export const unmockClientPeg = () => jest.spyOn(MatrixClientPeg, "get").mockRestore();
+export const unmockClientPeg = () => {
+    jest.spyOn(MatrixClientPeg, "get").mockRestore();
+    jest.spyOn(MatrixClientPeg, "safeGet").mockRestore();
+};
 
 /**
  * Returns basic mocked client methods related to the current user
@@ -120,7 +126,6 @@ export const mockClientMethodsEvents = () => ({
  * Returns basic mocked client methods related to server support
  */
 export const mockClientMethodsServer = (): Partial<Record<MethodLikeKeys<MatrixClient>, unknown>> => ({
-    doesServerSupportSeparateAddAndBind: jest.fn(),
     getIdentityServerUrl: jest.fn(),
     getHomeserverUrl: jest.fn(),
     getCapabilities: jest.fn().mockReturnValue({}),
@@ -147,14 +152,21 @@ export const mockClientMethodsCrypto = (): Partial<
     isKeyBackupKeyStored: jest.fn(),
     getCrossSigningCacheCallbacks: jest.fn().mockReturnValue({ getCrossSigningKeyCache: jest.fn() }),
     getStoredCrossSigningForUser: jest.fn(),
-    checkKeyBackup: jest.fn().mockReturnValue({}),
+    getKeyBackupVersion: jest.fn().mockResolvedValue(null),
     secretStorage: { hasKey: jest.fn() },
-    crypto: {
+    getCrypto: jest.fn().mockReturnValue({
+        getUserDeviceInfo: jest.fn(),
+        getCrossSigningStatus: jest.fn().mockResolvedValue({
+            publicKeysOnDevice: true,
+            privateKeysInSecretStorage: false,
+            privateKeysCachedLocally: {
+                masterKey: true,
+                selfSigningKey: true,
+                userSigningKey: true,
+            },
+        }),
+        isCrossSigningReady: jest.fn().mockResolvedValue(true),
         isSecretStorageReady: jest.fn(),
         getSessionBackupPrivateKey: jest.fn(),
-        crossSigningInfo: {
-            getId: jest.fn(),
-            isStoredInSecretStorage: jest.fn(),
-        },
-    },
+    }),
 });

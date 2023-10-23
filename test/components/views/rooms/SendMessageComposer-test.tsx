@@ -39,8 +39,6 @@ import { RoomPermalinkCreator } from "../../../../src/utils/permalinks/Permalink
 import { mockPlatformPeg } from "../../../test-utils/platform";
 import { doMaybeLocalRoomAction } from "../../../../src/utils/local-room";
 import { addTextToComposer } from "../../../test-utils/composer";
-import dis from "../../../../src/dispatcher/dispatcher";
-import SettingsStore from "../../../../src/settings/SettingsStore";
 
 jest.mock("../../../../src/utils/local-room", () => ({
     doMaybeLocalRoomAction: jest.fn(),
@@ -57,6 +55,7 @@ describe("<SendMessageComposer/>", () => {
         showApps: false,
         isPeeking: false,
         showRightPanel: true,
+        threadRightPanel: false,
         joining: false,
         atEndOfLiveTimeline: true,
         showTopUnreadMessagesBar: false,
@@ -83,6 +82,8 @@ describe("<SendMessageComposer/>", () => {
         narrow: false,
         activeCall: null,
         msc3946ProcessDynamicPredecessor: false,
+        canAskToJoin: false,
+        promptAskToJoin: false,
     };
     describe("createMessageContent", () => {
         const permalinkCreator = jest.fn() as any;
@@ -95,8 +96,9 @@ describe("<SendMessageComposer/>", () => {
             const content = createMessageContent("@alice:test", model, undefined, undefined, permalinkCreator);
 
             expect(content).toEqual({
-                body: "hello world",
-                msgtype: "m.text",
+                "body": "hello world",
+                "msgtype": "m.text",
+                "m.mentions": {},
             });
         });
 
@@ -108,10 +110,11 @@ describe("<SendMessageComposer/>", () => {
             const content = createMessageContent("@alice:test", model, undefined, undefined, permalinkCreator);
 
             expect(content).toEqual({
-                body: "hello *world*",
-                msgtype: "m.text",
-                format: "org.matrix.custom.html",
-                formatted_body: "hello <em>world</em>",
+                "body": "hello *world*",
+                "msgtype": "m.text",
+                "format": "org.matrix.custom.html",
+                "formatted_body": "hello <em>world</em>",
+                "m.mentions": {},
             });
         });
 
@@ -123,10 +126,11 @@ describe("<SendMessageComposer/>", () => {
             const content = createMessageContent("@alice:test", model, undefined, undefined, permalinkCreator);
 
             expect(content).toEqual({
-                body: "blinks __quickly__",
-                msgtype: "m.emote",
-                format: "org.matrix.custom.html",
-                formatted_body: "blinks <strong>quickly</strong>",
+                "body": "blinks __quickly__",
+                "msgtype": "m.emote",
+                "format": "org.matrix.custom.html",
+                "formatted_body": "blinks <strong>quickly</strong>",
+                "m.mentions": {},
             });
         });
 
@@ -139,8 +143,9 @@ describe("<SendMessageComposer/>", () => {
             const content = createMessageContent("@alice:test", model, undefined, undefined, permalinkCreator);
 
             expect(content).toEqual({
-                body: "✨sparkles✨",
-                msgtype: "m.emote",
+                "body": "✨sparkles✨",
+                "msgtype": "m.emote",
+                "m.mentions": {},
             });
         });
 
@@ -153,23 +158,14 @@ describe("<SendMessageComposer/>", () => {
             const content = createMessageContent("@alice:test", model, undefined, undefined, permalinkCreator);
 
             expect(content).toEqual({
-                body: "/dev/null is my favourite place",
-                msgtype: "m.text",
+                "body": "/dev/null is my favourite place",
+                "msgtype": "m.text",
+                "m.mentions": {},
             });
         });
     });
 
     describe("attachMentions", () => {
-        beforeEach(() => {
-            jest.spyOn(SettingsStore, "getValue").mockImplementation(
-                (settingName) => settingName === "feature_intentional_mentions",
-            );
-        });
-
-        afterEach(() => {
-            jest.spyOn(SettingsStore, "getValue").mockReset();
-        });
-
         const partsCreator = createPartCreator();
 
         it("no mentions", () => {
@@ -177,7 +173,7 @@ describe("<SendMessageComposer/>", () => {
             const content: IContent = {};
             attachMentions("@alice:test", content, model, undefined);
             expect(content).toEqual({
-                "org.matrix.msc3952.mentions": {},
+                "m.mentions": {},
             });
         });
 
@@ -186,7 +182,7 @@ describe("<SendMessageComposer/>", () => {
             const content: IContent = {};
             attachMentions("@alice:test", content, model, undefined);
             expect(content).toEqual({
-                "org.matrix.msc3952.mentions": { user_ids: ["@bob:test"] },
+                "m.mentions": { user_ids: ["@bob:test"] },
             });
         });
 
@@ -197,13 +193,13 @@ describe("<SendMessageComposer/>", () => {
                 type: "m.room.message",
                 user: "@bob:test",
                 room: "!abc:test",
-                content: { "org.matrix.msc3952.mentions": {} },
+                content: { "m.mentions": {} },
                 event: true,
             });
             let content: IContent = {};
             attachMentions("@alice:test", content, model, replyToEvent);
             expect(content).toEqual({
-                "org.matrix.msc3952.mentions": { user_ids: ["@bob:test"] },
+                "m.mentions": { user_ids: ["@bob:test"] },
             });
 
             // It also adds any other mentioned users, but removes yourself.
@@ -211,13 +207,13 @@ describe("<SendMessageComposer/>", () => {
                 type: "m.room.message",
                 user: "@bob:test",
                 room: "!abc:test",
-                content: { "org.matrix.msc3952.mentions": { user_ids: ["@alice:test", "@charlie:test"] } },
+                content: { "m.mentions": { user_ids: ["@alice:test", "@charlie:test"] } },
                 event: true,
             });
             content = {};
             attachMentions("@alice:test", content, model, replyToEvent);
             expect(content).toEqual({
-                "org.matrix.msc3952.mentions": { user_ids: ["@bob:test", "@charlie:test"] },
+                "m.mentions": { user_ids: ["@bob:test", "@charlie:test"] },
             });
         });
 
@@ -226,7 +222,7 @@ describe("<SendMessageComposer/>", () => {
             const content: IContent = {};
             attachMentions("@alice:test", content, model, undefined);
             expect(content).toEqual({
-                "org.matrix.msc3952.mentions": { room: true },
+                "m.mentions": { room: true },
             });
         });
 
@@ -237,13 +233,13 @@ describe("<SendMessageComposer/>", () => {
                 type: "m.room.message",
                 user: "@alice:test",
                 room: "!abc:test",
-                content: { "org.matrix.msc3952.mentions": { room: true } },
+                content: { "m.mentions": { room: true } },
                 event: true,
             });
             const content: IContent = {};
             attachMentions("@alice:test", content, model, replyToEvent);
             expect(content).toEqual({
-                "org.matrix.msc3952.mentions": {},
+                "m.mentions": {},
             });
         });
 
@@ -255,13 +251,13 @@ describe("<SendMessageComposer/>", () => {
                 user: "@alice:test",
                 room: "!abc:test",
                 // @ts-ignore - Purposefully testing invalid data.
-                content: { "org.matrix.msc3952.mentions": { user_ids: "@bob:test" } },
+                content: { "m.mentions": { user_ids: "@bob:test" } },
                 event: true,
             });
             const content: IContent = {};
             attachMentions("@alice:test", content, model, replyToEvent);
             expect(content).toEqual({
-                "org.matrix.msc3952.mentions": {},
+                "m.mentions": {},
             });
         });
 
@@ -272,8 +268,8 @@ describe("<SendMessageComposer/>", () => {
                 const prevContent: IContent = {};
                 attachMentions("@alice:test", content, model, undefined, prevContent);
                 expect(content).toEqual({
-                    "org.matrix.msc3952.mentions": {},
-                    "m.new_content": { "org.matrix.msc3952.mentions": {} },
+                    "m.mentions": {},
+                    "m.new_content": { "m.mentions": {} },
                 });
             });
 
@@ -281,12 +277,12 @@ describe("<SendMessageComposer/>", () => {
                 const model = new EditorModel([], partsCreator);
                 const content: IContent = { "m.new_content": {} };
                 const prevContent: IContent = {
-                    "org.matrix.msc3952.mentions": { user_ids: ["@bob:test"], room: true },
+                    "m.mentions": { user_ids: ["@bob:test"], room: true },
                 };
                 attachMentions("@alice:test", content, model, undefined, prevContent);
                 expect(content).toEqual({
-                    "org.matrix.msc3952.mentions": {},
-                    "m.new_content": { "org.matrix.msc3952.mentions": {} },
+                    "m.mentions": {},
+                    "m.new_content": { "m.mentions": {} },
                 });
             });
 
@@ -296,19 +292,19 @@ describe("<SendMessageComposer/>", () => {
                 const prevContent: IContent = {};
                 attachMentions("@alice:test", content, model, undefined, prevContent);
                 expect(content).toEqual({
-                    "org.matrix.msc3952.mentions": { user_ids: ["@bob:test"] },
-                    "m.new_content": { "org.matrix.msc3952.mentions": { user_ids: ["@bob:test"] } },
+                    "m.mentions": { user_ids: ["@bob:test"] },
+                    "m.new_content": { "m.mentions": { user_ids: ["@bob:test"] } },
                 });
             });
 
             it("test prev user mentions", () => {
                 const model = new EditorModel([partsCreator.userPill("Bob", "@bob:test")], partsCreator);
                 const content: IContent = { "m.new_content": {} };
-                const prevContent: IContent = { "org.matrix.msc3952.mentions": { user_ids: ["@bob:test"] } };
+                const prevContent: IContent = { "m.mentions": { user_ids: ["@bob:test"] } };
                 attachMentions("@alice:test", content, model, undefined, prevContent);
                 expect(content).toEqual({
-                    "org.matrix.msc3952.mentions": {},
-                    "m.new_content": { "org.matrix.msc3952.mentions": { user_ids: ["@bob:test"] } },
+                    "m.mentions": {},
+                    "m.new_content": { "m.mentions": { user_ids: ["@bob:test"] } },
                 });
             });
 
@@ -318,19 +314,19 @@ describe("<SendMessageComposer/>", () => {
                 const prevContent: IContent = {};
                 attachMentions("@alice:test", content, model, undefined, prevContent);
                 expect(content).toEqual({
-                    "org.matrix.msc3952.mentions": { room: true },
-                    "m.new_content": { "org.matrix.msc3952.mentions": { room: true } },
+                    "m.mentions": { room: true },
+                    "m.new_content": { "m.mentions": { room: true } },
                 });
             });
 
             it("test prev room mention", () => {
                 const model = new EditorModel([partsCreator.atRoomPill("@room")], partsCreator);
                 const content: IContent = { "m.new_content": {} };
-                const prevContent: IContent = { "org.matrix.msc3952.mentions": { room: true } };
+                const prevContent: IContent = { "m.mentions": { room: true } };
                 attachMentions("@alice:test", content, model, undefined, prevContent);
                 expect(content).toEqual({
-                    "org.matrix.msc3952.mentions": {},
-                    "m.new_content": { "org.matrix.msc3952.mentions": { room: true } },
+                    "m.mentions": {},
+                    "m.new_content": { "m.mentions": { room: true } },
                 });
             });
 
@@ -339,11 +335,11 @@ describe("<SendMessageComposer/>", () => {
                 const model = new EditorModel([], partsCreator);
                 const content: IContent = { "m.new_content": {} };
                 // @ts-ignore - Purposefully testing invalid data.
-                const prevContent: IContent = { "org.matrix.msc3952.mentions": { user_ids: "@bob:test" } };
+                const prevContent: IContent = { "m.mentions": { user_ids: "@bob:test" } };
                 attachMentions("@alice:test", content, model, undefined, prevContent);
                 expect(content).toEqual({
-                    "org.matrix.msc3952.mentions": {},
-                    "m.new_content": { "org.matrix.msc3952.mentions": {} },
+                    "m.mentions": {},
+                    "m.new_content": { "m.mentions": {} },
                 });
             });
         });
@@ -486,8 +482,9 @@ describe("<SendMessageComposer/>", () => {
             fireEvent.keyDown(container.querySelector(".mx_SendMessageComposer")!, { key: "Enter" });
 
             expect(mockClient.sendMessage).toHaveBeenCalledWith("myfakeroom", null, {
-                body: "test message",
-                msgtype: MsgType.Text,
+                "body": "test message",
+                "msgtype": MsgType.Text,
+                "m.mentions": {},
             });
         });
 
@@ -505,11 +502,12 @@ describe("<SendMessageComposer/>", () => {
             fireEvent.keyDown(container.querySelector(".mx_SendMessageComposer")!, { key: "Enter" });
 
             expect(mockClient.sendMessage).toHaveBeenCalledWith("myfakeroom", null, {
-                body: "test message",
-                msgtype: MsgType.Text,
+                "body": "test message",
+                "msgtype": MsgType.Text,
+                "m.mentions": {},
             });
 
-            expect(dis.dispatch).toHaveBeenCalledWith({ action: `effects.confetti` });
+            expect(defaultDispatcher.dispatch).toHaveBeenCalledWith({ action: `effects.confetti` });
         });
 
         it("not to send chat effects on message sending for threads", () => {
@@ -532,11 +530,12 @@ describe("<SendMessageComposer/>", () => {
             fireEvent.keyDown(container.querySelector(".mx_SendMessageComposer")!, { key: "Enter" });
 
             expect(mockClient.sendMessage).toHaveBeenCalledWith("myfakeroom", null, {
-                body: "test message",
-                msgtype: MsgType.Text,
+                "body": "test message",
+                "msgtype": MsgType.Text,
+                "m.mentions": {},
             });
 
-            expect(dis.dispatch).not.toHaveBeenCalledWith({ action: `effects.confetti` });
+            expect(defaultDispatcher.dispatch).not.toHaveBeenCalledWith({ action: `effects.confetti` });
         });
     });
 

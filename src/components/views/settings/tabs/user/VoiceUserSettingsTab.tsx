@@ -17,12 +17,12 @@ limitations under the License.
 
 import React, { ReactNode } from "react";
 import { logger } from "matrix-js-sdk/src/logger";
+import { FALLBACK_ICE_SERVER } from "matrix-js-sdk/src/webrtc/call";
 
 import { _t } from "../../../../../languageHandler";
 import MediaDeviceHandler, { IMediaDevices, MediaDeviceKindEnum } from "../../../../../MediaDeviceHandler";
 import Field from "../../../elements/Field";
 import AccessibleButton from "../../../elements/AccessibleButton";
-import { MatrixClientPeg } from "../../../../../MatrixClientPeg";
 import { SettingLevel } from "../../../../../settings/SettingLevel";
 import SettingsFlag from "../../../elements/SettingsFlag";
 import LabelledToggleSwitch from "../../../elements/LabelledToggleSwitch";
@@ -30,6 +30,7 @@ import { requestMediaPermissions } from "../../../../../utils/media/requestMedia
 import SettingsTab from "../SettingsTab";
 import { SettingsSection } from "../../shared/SettingsSection";
 import SettingsSubsection from "../../shared/SettingsSubsection";
+import MatrixClientContext from "../../../../../contexts/MatrixClientContext";
 
 interface IState {
     mediaDevices: IMediaDevices | null;
@@ -57,6 +58,9 @@ const mapDeviceKindToHandlerValue = (deviceKind: MediaDeviceKindEnum): string | 
 };
 
 export default class VoiceUserSettingsTab extends React.Component<{}, IState> {
+    public static contextType = MatrixClientContext;
+    public context!: React.ContextType<typeof MatrixClientContext>;
+
     public constructor(props: {}) {
         super(props);
 
@@ -113,11 +117,11 @@ export default class VoiceUserSettingsTab extends React.Component<{}, IState> {
     };
 
     private changeWebRtcMethod = (p2p: boolean): void => {
-        MatrixClientPeg.get().setForceTURN(!p2p);
+        this.context.setForceTURN(!p2p);
     };
 
     private changeFallbackICEServerAllowed = (allow: boolean): void => {
-        MatrixClientPeg.get().setFallbackICEServerAllowed(allow);
+        this.context.setFallbackICEServerAllowed(allow);
     };
 
     private renderDeviceOptions(devices: Array<MediaDeviceInfo>, category: MediaDeviceKindEnum): Array<JSX.Element> {
@@ -155,29 +159,30 @@ export default class VoiceUserSettingsTab extends React.Component<{}, IState> {
         if (!this.state.mediaDevices) {
             requestButton = (
                 <div>
-                    <p>{_t("Missing media permissions, click the button below to request.")}</p>
+                    <p>{_t("settings|voip|missing_permissions_prompt")}</p>
                     <AccessibleButton onClick={this.requestMediaPermissions} kind="primary">
-                        {_t("Request media permissions")}
+                        {_t("settings|voip|request_permissions")}
                     </AccessibleButton>
                 </div>
             );
         } else if (this.state.mediaDevices) {
-            speakerDropdown = this.renderDropdown(MediaDeviceKindEnum.AudioOutput, _t("Audio Output")) || (
-                <p>{_t("No Audio Outputs detected")}</p>
+            speakerDropdown = this.renderDropdown(
+                MediaDeviceKindEnum.AudioOutput,
+                _t("settings|voip|audio_output"),
+            ) || <p>{_t("settings|voip|audio_output_empty")}</p>;
+            microphoneDropdown = this.renderDropdown(MediaDeviceKindEnum.AudioInput, _t("common|microphone")) || (
+                <p>{_t("settings|voip|audio_input_empty")}</p>
             );
-            microphoneDropdown = this.renderDropdown(MediaDeviceKindEnum.AudioInput, _t("Microphone")) || (
-                <p>{_t("No Microphones detected")}</p>
-            );
-            webcamDropdown = this.renderDropdown(MediaDeviceKindEnum.VideoInput, _t("Camera")) || (
-                <p>{_t("No Webcams detected")}</p>
+            webcamDropdown = this.renderDropdown(MediaDeviceKindEnum.VideoInput, _t("common|camera")) || (
+                <p>{_t("settings|voip|video_input_empty")}</p>
             );
         }
 
         return (
             <SettingsTab>
-                <SettingsSection heading={_t("Voice & Video")}>
+                <SettingsSection heading={_t("settings|voip|title")}>
                     {requestButton}
-                    <SettingsSubsection heading={_t("Voice settings")} stretchContent>
+                    <SettingsSubsection heading={_t("settings|voip|voice_section")} stretchContent>
                         {speakerDropdown}
                         {microphoneDropdown}
                         <LabelledToggleSwitch
@@ -186,25 +191,25 @@ export default class VoiceUserSettingsTab extends React.Component<{}, IState> {
                                 await MediaDeviceHandler.setAudioAutoGainControl(v);
                                 this.setState({ audioAutoGainControl: MediaDeviceHandler.getAudioAutoGainControl() });
                             }}
-                            label={_t("Automatically adjust the microphone volume")}
+                            label={_t("settings|voip|voice_agc")}
                             data-testid="voice-auto-gain"
                         />
                     </SettingsSubsection>
-                    <SettingsSubsection heading={_t("Video settings")} stretchContent>
+                    <SettingsSubsection heading={_t("settings|voip|video_section")} stretchContent>
                         {webcamDropdown}
                         <SettingsFlag name="VideoView.flipVideoHorizontally" level={SettingLevel.ACCOUNT} />
                     </SettingsSubsection>
                 </SettingsSection>
 
-                <SettingsSection heading={_t("Advanced")}>
-                    <SettingsSubsection heading={_t("Voice processing")}>
+                <SettingsSection heading={_t("common|advanced")}>
+                    <SettingsSubsection heading={_t("settings|voip|voice_processing")}>
                         <LabelledToggleSwitch
                             value={this.state.audioNoiseSuppression}
                             onChange={async (v): Promise<void> => {
                                 await MediaDeviceHandler.setAudioNoiseSuppression(v);
                                 this.setState({ audioNoiseSuppression: MediaDeviceHandler.getAudioNoiseSuppression() });
                             }}
-                            label={_t("Noise suppression")}
+                            label={_t("settings|voip|noise_suppression")}
                             data-testid="voice-noise-suppression"
                         />
                         <LabelledToggleSwitch
@@ -213,11 +218,11 @@ export default class VoiceUserSettingsTab extends React.Component<{}, IState> {
                                 await MediaDeviceHandler.setAudioEchoCancellation(v);
                                 this.setState({ audioEchoCancellation: MediaDeviceHandler.getAudioEchoCancellation() });
                             }}
-                            label={_t("Echo cancellation")}
+                            label={_t("settings|voip|echo_cancellation")}
                             data-testid="voice-echo-cancellation"
                         />
                     </SettingsSubsection>
-                    <SettingsSubsection heading={_t("Connection")}>
+                    <SettingsSubsection heading={_t("settings|voip|connection_section")}>
                         <SettingsFlag
                             name="webRtcAllowPeerToPeer"
                             level={SettingLevel.DEVICE}
@@ -225,6 +230,9 @@ export default class VoiceUserSettingsTab extends React.Component<{}, IState> {
                         />
                         <SettingsFlag
                             name="fallbackICEServerAllowed"
+                            label={_t("settings|voip|enable_fallback_ice_server", {
+                                server: new URL(FALLBACK_ICE_SERVER).pathname,
+                            })}
                             level={SettingLevel.DEVICE}
                             onChange={this.changeFallbackICEServerAllowed}
                         />

@@ -16,10 +16,10 @@ limitations under the License.
 
 import classNames from "classnames";
 import React, { createRef, ClipboardEvent, SyntheticEvent } from "react";
-import { Room } from "matrix-js-sdk/src/models/room";
-import { MatrixEvent } from "matrix-js-sdk/src/models/event";
+import { Room, MatrixEvent } from "matrix-js-sdk/src/matrix";
 import EMOTICON_REGEX from "emojibase-regex/emoticon";
 import { logger } from "matrix-js-sdk/src/logger";
+import { EMOTICON_TO_EMOJI } from "@matrix-org/emojibase-bindings";
 
 import EditorModel from "../../../editor/model";
 import HistoryManager from "../../../editor/history";
@@ -37,7 +37,6 @@ import { parseEvent, parsePlainTextMessage } from "../../../editor/deserialize";
 import { renderModel } from "../../../editor/render";
 import SettingsStore from "../../../settings/SettingsStore";
 import { IS_MAC, Key } from "../../../Keyboard";
-import { EMOTICON_TO_EMOJI } from "../../../emoji";
 import { CommandCategories, CommandMap, parseCommandString } from "../../../SlashCommands";
 import Range from "../../../editor/range";
 import MessageComposerFormatBar, { Formatting } from "./MessageComposerFormatBar";
@@ -51,6 +50,7 @@ import { ALTERNATE_KEY_NAME, KeyBindingAction } from "../../../accessibility/Key
 import { _t } from "../../../languageHandler";
 import { linkify } from "../../../linkify-matrix";
 import { SdkContextClass } from "../../../contexts/SDKContext";
+import { MatrixClientPeg } from "../../../MatrixClientPeg";
 
 // matches emoticons which follow the start of a line or whitespace
 const REGEX_EMOTICON_WHITESPACE = new RegExp("(?:^|\\s)(" + EMOTICON_REGEX.source + ")\\s|:^$");
@@ -131,7 +131,7 @@ export default class BasicMessageEditor extends React.Component<IProps, IState> 
     private hasTextSelected = false;
 
     private _isCaretAtEnd = false;
-    private lastCaret: DocumentOffset;
+    private lastCaret!: DocumentOffset;
     private lastSelection: ReturnType<typeof cloneSelection> | null = null;
 
     private readonly useMarkdownHandle: string;
@@ -268,7 +268,7 @@ export default class BasicMessageEditor extends React.Component<IProps, IState> 
         if (isTyping && this.props.model.parts[0].type === "command") {
             const { cmd } = parseCommandString(this.props.model.parts[0].text);
             const command = CommandMap.get(cmd!);
-            if (!command?.isEnabled() || command.category !== CommandCategories.messages) {
+            if (!command?.isEnabled(MatrixClientPeg.get()) || command.category !== CommandCategories.messages) {
                 isTyping = false;
             }
         }
@@ -282,9 +282,7 @@ export default class BasicMessageEditor extends React.Component<IProps, IState> 
     };
 
     private showPlaceholder(): void {
-        // escape single quotes
-        const placeholder = this.props.placeholder?.replace(/'/g, "\\'");
-        this.editorRef.current?.style.setProperty("--placeholder", `'${placeholder}'`);
+        this.editorRef.current?.style.setProperty("--placeholder", `'${CSS.escape(this.props.placeholder ?? "")}'`);
         this.editorRef.current?.classList.add("mx_BasicMessageComposer_inputEmpty");
     }
 
@@ -553,8 +551,6 @@ export default class BasicMessageEditor extends React.Component<IProps, IState> 
                     autoComplete.onEscape(event);
                     handled = true;
                     break;
-                default:
-                    return; // don't preventDefault on anything else
             }
         } else if (autocompleteAction === KeyBindingAction.ForceCompleteAutocomplete && !this.state.showVisualBell) {
             // there is no current autocomplete window, try to open it
@@ -849,6 +845,7 @@ export default class BasicMessageEditor extends React.Component<IProps, IState> 
                     dir="auto"
                     aria-disabled={this.props.disabled}
                     data-testid="basicmessagecomposer"
+                    translate="no"
                 />
             </div>
         );

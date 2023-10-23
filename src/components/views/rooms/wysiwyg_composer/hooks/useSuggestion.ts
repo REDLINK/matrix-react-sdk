@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { Attributes, MappedSuggestion } from "@matrix-org/matrix-wysiwyg";
-import { SyntheticEvent, useState } from "react";
+import { AllowedMentionAttributes, MappedSuggestion } from "@matrix-org/matrix-wysiwyg";
+import { SyntheticEvent, useState, SetStateAction } from "react";
+import { logger } from "matrix-js-sdk/src/logger";
 
-import { isNotNull, isNotUndefined } from "../../../../../Typeguards";
+import { isNotNull } from "../../../../../Typeguards";
 
 /**
  * Information about the current state of the `useSuggestion` hook.
@@ -53,19 +54,36 @@ export function useSuggestion(
     editorRef: React.RefObject<HTMLDivElement>,
     setText: (text?: string) => void,
 ): {
-    handleMention: (href: string, displayName: string, attributes: Attributes) => void;
+    handleMention: (href: string, displayName: string, attributes: AllowedMentionAttributes) => void;
+    handleAtRoomMention: (attributes: AllowedMentionAttributes) => void;
     handleCommand: (text: string) => void;
     onSelect: (event: SyntheticEvent<HTMLDivElement>) => void;
     suggestion: MappedSuggestion | null;
 } {
-    const [suggestionData, setSuggestionData] = useState<SuggestionState>(null);
+    const [suggestionData, setSuggestionData0] = useState<SuggestionState>(null);
+
+    // debug for https://github.com/vector-im/element-web/issues/26037
+    const setSuggestionData = (suggestionData: SetStateAction<SuggestionState>): void => {
+        // setState allows either the data itself or a callback which returns the data
+        logger.log(
+            `## 26037 ## wysiwyg useSuggestion hook setting suggestion data to ${
+                suggestionData === null || suggestionData instanceof Function
+                    ? suggestionData
+                    : suggestionData.mappedSuggestion.keyChar + suggestionData.mappedSuggestion.text
+            }`,
+        );
+        setSuggestionData0(suggestionData);
+    };
 
     // We create a `selectionchange` handler here because we need to know when the user has moved the cursor,
     // we can not depend on input events only
     const onSelect = (): void => processSelectionChange(editorRef, setSuggestionData);
 
-    const handleMention = (href: string, displayName: string, attributes: Attributes): void =>
+    const handleMention = (href: string, displayName: string, attributes: AllowedMentionAttributes): void =>
         processMention(href, displayName, attributes, suggestionData, setSuggestionData, setText);
+
+    const handleAtRoomMention = (attributes: AllowedMentionAttributes): void =>
+        processMention("#", "@room", attributes, suggestionData, setSuggestionData, setText);
 
     const handleCommand = (replacementText: string): void =>
         processCommand(replacementText, suggestionData, setSuggestionData, setText);
@@ -74,6 +92,7 @@ export function useSuggestion(
         suggestion: suggestionData?.mappedSuggestion ?? null,
         handleCommand,
         handleMention,
+        handleAtRoomMention,
         onSelect,
     };
 }
@@ -143,7 +162,7 @@ export function processSelectionChange(
 export function processMention(
     href: string,
     displayName: string,
-    attributes: Attributes, // these will be used when formatting the link as a pill
+    attributes: AllowedMentionAttributes, // these will be used when formatting the link as a pill
     suggestionData: SuggestionState,
     setSuggestionData: React.Dispatch<React.SetStateAction<SuggestionState>>,
     setText: (text?: string) => void,
@@ -160,9 +179,11 @@ export function processMention(
     const linkTextNode = document.createTextNode(displayName);
     linkElement.setAttribute("href", href);
     linkElement.setAttribute("contenteditable", "false");
-    Object.entries(attributes).forEach(
-        ([attr, value]) => isNotUndefined(value) && linkElement.setAttribute(attr, value),
-    );
+
+    for (const [attr, value] of attributes.entries()) {
+        linkElement.setAttribute(attr, value);
+    }
+
     linkElement.appendChild(linkTextNode);
 
     // create text nodes to go before and after the link

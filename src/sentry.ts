@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 import * as Sentry from "@sentry/browser";
-import { MatrixClient } from "matrix-js-sdk/src/client";
+import { MatrixClient } from "matrix-js-sdk/src/matrix";
 
 import SdkConfig from "./SdkConfig";
 import { MatrixClientPeg } from "./MatrixClientPeg";
@@ -139,7 +139,7 @@ async function getCryptoContext(client: MatrixClient): Promise<CryptoContext> {
             !!(pkCache && (await pkCache.getCrossSigningKeyCache?.("user_signing"))),
         ),
         secret_storage_ready: String(await client.isSecretStorageReady()),
-        secret_storage_key_in_account: String(!!(await secretStorage.hasKey())),
+        secret_storage_key_in_account: String(await secretStorage.hasKey()),
         session_backup_key_in_secret_storage: String(!!(await client.isKeyBackupKeyStored())),
         session_backup_key_cached: String(!!sessionBackupKeyFromCache),
         session_backup_key_well_formed: String(sessionBackupKeyFromCache instanceof Uint8Array),
@@ -165,7 +165,7 @@ function getDeviceContext(client: MatrixClient): DeviceContext {
 }
 
 async function getContexts(): Promise<Contexts> {
-    const client = MatrixClientPeg.get();
+    const client = MatrixClientPeg.safeGet();
     return {
         user: getUserContext(client),
         crypto: await getCryptoContext(client),
@@ -174,7 +174,7 @@ async function getContexts(): Promise<Contexts> {
     };
 }
 
-export async function sendSentryReport(userText: string, issueUrl: string, error?: Error): Promise<void> {
+export async function sendSentryReport(userText: string, issueUrl: string, error?: unknown): Promise<void> {
     const sentryConfig = SdkConfig.getObject("sentry");
     if (!sentryConfig) return;
 

@@ -84,7 +84,7 @@ const ThreadListContextMenu: React.FC<ThreadListContextMenuProps> = ({
         onMenuToggle?.(menuDisplayed);
     }, [menuDisplayed, onMenuToggle]);
 
-    const room = MatrixClientPeg.get().getRoom(mxEvent.getRoomId());
+    const room = MatrixClientPeg.safeGet().getRoom(mxEvent.getRoomId());
     const isMainSplitTimelineShown = !!room && !WidgetLayoutStore.instance.hasMaximisedWidget(room);
     return (
         <React.Fragment>
@@ -92,7 +92,7 @@ const ThreadListContextMenu: React.FC<ThreadListContextMenuProps> = ({
                 {...props}
                 className="mx_BaseCard_header_title_button--option"
                 onClick={openMenu}
-                title={_t("Thread options")}
+                title={_t("right_panel|thread_list|context_menu_label")}
                 isExpanded={menuDisplayed}
                 inputRef={button}
                 data-testid="threadlist-dropdown-button"
@@ -109,7 +109,7 @@ const ThreadListContextMenu: React.FC<ThreadListContextMenuProps> = ({
                         {isMainSplitTimelineShown && (
                             <IconizedContextMenuOption
                                 onClick={(e) => viewInRoom(e)}
-                                label={_t("View in room")}
+                                label={_t("timeline|mab|view_in_room")}
                                 iconClassName="mx_ThreadPanel_viewInRoom"
                             />
                         )}
@@ -117,7 +117,7 @@ const ThreadListContextMenu: React.FC<ThreadListContextMenuProps> = ({
                             <IconizedContextMenuOption
                                 data-testid="copy-thread-link"
                                 onClick={(e) => copyLinkToThread(e)}
-                                label={_t("Copy link to thread")}
+                                label={_t("timeline|mab|copy_link_thread")}
                                 iconClassName="mx_ThreadPanel_copyLinkToThread"
                             />
                         )}

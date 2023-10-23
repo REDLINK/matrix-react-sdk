@@ -16,7 +16,7 @@ limitations under the License.
 
 import React, { ReactNode } from "react";
 import { logger } from "matrix-js-sdk/src/logger";
-import { IThreepid } from "matrix-js-sdk/src/@types/threepids";
+import { IThreepid } from "matrix-js-sdk/src/matrix";
 
 import { _t } from "../../../languageHandler";
 import { MatrixClientPeg } from "../../../MatrixClientPeg";
@@ -47,7 +47,7 @@ const REACHABILITY_TIMEOUT = 10000; // ms
 async function checkIdentityServerUrl(u: string): Promise<string | null> {
     const parsedUrl = parseUrl(u);
 
-    if (parsedUrl.protocol !== "https:") return _t("Identity server URL must be HTTPS");
+    if (parsedUrl.protocol !== "https:") return _t("identity_server|url_not_https");
 
     // XXX: duplicated logic from js-sdk but it's quite tied up in the validation logic in the
     // js-sdk so probably as easy to duplicate it than to separate it out so we can reuse it
@@ -56,12 +56,12 @@ async function checkIdentityServerUrl(u: string): Promise<string | null> {
         if (response.ok) {
             return null;
         } else if (response.status < 200 || response.status >= 300) {
-            return _t("Not a valid identity server (status code %(code)s)", { code: response.status });
+            return _t("identity_server|error_invalid", { code: response.status });
         } else {
-            return _t("Could not connect to identity server");
+            return _t("identity_server|error_connection");
         }
     } catch (e) {
-        return _t("Could not connect to identity server");
+        return _t("identity_server|error_connection");
     }
 }
 
@@ -88,7 +88,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
         super(props);
 
         let defaultIdServer = "";
-        if (!MatrixClientPeg.get().getIdentityServerUrl() && getDefaultIdentityServerUrl()) {
+        if (!MatrixClientPeg.safeGet().getIdentityServerUrl() && getDefaultIdentityServerUrl()) {
             // If no identity server is configured but there's one in the config, prepopulate
             // the field to help the user.
             defaultIdServer = abbreviateUrl(getDefaultIdentityServerUrl());
@@ -96,7 +96,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
 
         this.state = {
             defaultIdServer,
-            currentClientIdServer: MatrixClientPeg.get().getIdentityServerUrl(),
+            currentClientIdServer: MatrixClientPeg.safeGet().getIdentityServerUrl(),
             idServer: "",
             busy: false,
             disconnectBusy: false,
@@ -118,7 +118,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
         if (payload.action !== "id_server_changed") return;
 
         this.setState({
-            currentClientIdServer: MatrixClientPeg.get().getIdentityServerUrl(),
+            currentClientIdServer: MatrixClientPeg.safeGet().getIdentityServerUrl(),
         });
     };
 
@@ -133,7 +133,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
             return (
                 <div>
                     <InlineSpinner />
-                    {_t("Checking server")}
+                    {_t("identity_server|checking")}
                 </div>
             );
         } else if (this.state.error) {
@@ -149,7 +149,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
 
     private saveIdServer = (fullUrl: string): void => {
         // Account data change will update localstorage, client, etc through dispatcher
-        MatrixClientPeg.get().setAccountData("m.identity_server", {
+        MatrixClientPeg.safeGet().setAccountData("m.identity_server", {
             base_url: fullUrl,
         });
         this.setState({
@@ -181,7 +181,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
                 let save = true;
 
                 // Double check that the identity server even has terms of service.
-                const hasTerms = await doesIdentityServerHaveTerms(MatrixClientPeg.get(), fullUrl);
+                const hasTerms = await doesIdentityServerHaveTerms(MatrixClientPeg.safeGet(), fullUrl);
                 if (!hasTerms) {
                     const [confirmed] = await this.showNoTermsWarning(fullUrl);
                     save = !!confirmed;
@@ -191,16 +191,16 @@ export default class SetIdServer extends React.Component<IProps, IState> {
                 // 3PIDs that would be left behind.
                 if (save && currentClientIdServer && fullUrl !== currentClientIdServer) {
                     const [confirmed] = await this.showServerChangeWarning({
-                        title: _t("Change identity server"),
+                        title: _t("identity_server|change"),
                         unboundMessage: _t(
-                            "Disconnect from the identity server <current /> and connect to <new /> instead?",
+                            "identity_server|change_prompt",
                             {},
                             {
                                 current: (sub) => <b>{abbreviateUrl(currentClientIdServer)}</b>,
                                 new: (sub) => <b>{abbreviateUrl(idServer)}</b>,
                             },
                         ),
-                        button: _t("Continue"),
+                        button: _t("action|continue"),
                     });
                     save = !!confirmed;
                 }
@@ -210,29 +210,27 @@ export default class SetIdServer extends React.Component<IProps, IState> {
                 }
             } catch (e) {
                 logger.error(e);
-                errStr = _t("Terms of service not accepted or the identity server is invalid.");
+                errStr = _t("identity_server|error_invalid_or_terms");
             }
         }
         this.setState({
             busy: false,
             checking: false,
             error: errStr ?? undefined,
-            currentClientIdServer: MatrixClientPeg.get().getIdentityServerUrl(),
+            currentClientIdServer: MatrixClientPeg.safeGet().getIdentityServerUrl(),
         });
     };
 
     private showNoTermsWarning(fullUrl: string): Promise<[ok?: boolean]> {
         const { finished } = Modal.createDialog(QuestionDialog, {
-            title: _t("Identity server has no terms of service"),
+            title: _t("terms|identity_server_no_terms_title"),
             description: (
                 <div>
-                    <span className="warning">
-                        {_t("The identity server you have chosen does not have any terms of service.")}
-                    </span>
-                    <span>&nbsp;{_t("Only continue if you trust the owner of the server.")}</span>
+                    <span className="warning">{_t("identity_server|no_terms")}</span>
+                    <span>&nbsp;{_t("terms|identity_server_no_terms_description_2")}</span>
                 </div>
             ),
-            button: _t("Continue"),
+            button: _t("action|continue"),
         });
         return finished;
     }
@@ -241,13 +239,13 @@ export default class SetIdServer extends React.Component<IProps, IState> {
         this.setState({ disconnectBusy: true });
         try {
             const [confirmed] = await this.showServerChangeWarning({
-                title: _t("Disconnect identity server"),
+                title: _t("identity_server|disconnect"),
                 unboundMessage: _t(
-                    "Disconnect from the identity server <idserver />?",
+                    "identity_server|disconnect_server",
                     {},
                     { idserver: (sub) => <b>{abbreviateUrl(this.state.currentClientIdServer)}</b> },
                 ),
-                button: _t("Disconnect"),
+                button: _t("action|disconnect"),
             });
             if (confirmed) {
                 this.disconnectIdServer();
@@ -272,7 +270,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
         let currentServerReachable = true;
         try {
             threepids = await timeout(
-                getThreepidsWithBindStatus(MatrixClientPeg.get()),
+                getThreepidsWithBindStatus(MatrixClientPeg.safeGet()),
                 Promise.reject(new Error("Timeout attempting to reach identity server")),
                 REACHABILITY_TIMEOUT,
             );
@@ -294,58 +292,34 @@ export default class SetIdServer extends React.Component<IProps, IState> {
         if (!currentServerReachable) {
             message = (
                 <div>
-                    <p>
-                        {_t(
-                            "You should <b>remove your personal data</b> from identity server " +
-                                "<idserver /> before disconnecting. Unfortunately, identity server " +
-                                "<idserver /> is currently offline or cannot be reached.",
-                            {},
-                            messageElements,
-                        )}
-                    </p>
-                    <p>{_t("You should:")}</p>
+                    <p>{_t("identity_server|disconnect_offline_warning", {}, messageElements)}</p>
+                    <p>{_t("identity_server|suggestions")}</p>
                     <ul>
+                        <li>{_t("identity_server|suggestions_1")}</li>
                         <li>
                             {_t(
-                                "check your browser plugins for anything that might block " +
-                                    "the identity server (such as Privacy Badger)",
-                            )}
-                        </li>
-                        <li>
-                            {_t(
-                                "contact the administrators of identity server <idserver />",
+                                "identity_server|suggestions_2",
                                 {},
                                 {
                                     idserver: messageElements.idserver,
                                 },
                             )}
                         </li>
-                        <li>{_t("wait and try again later")}</li>
+                        <li>{_t("identity_server|suggestions_3")}</li>
                     </ul>
                 </div>
             );
             danger = true;
-            button = _t("Disconnect anyway");
+            button = _t("identity_server|disconnect_anyway");
         } else if (boundThreepids.length) {
             message = (
                 <div>
-                    <p>
-                        {_t(
-                            "You are still <b>sharing your personal data</b> on the identity server <idserver />.",
-                            {},
-                            messageElements,
-                        )}
-                    </p>
-                    <p>
-                        {_t(
-                            "We recommend that you remove your email addresses and phone numbers " +
-                                "from the identity server before disconnecting.",
-                        )}
-                    </p>
+                    <p>{_t("identity_server|disconnect_personal_data_warning_1", {}, messageElements)}</p>
+                    <p>{_t("identity_server|disconnect_personal_data_warning_2")}</p>
                 </div>
             );
             danger = true;
-            button = _t("Disconnect anyway");
+            button = _t("identity_server|disconnect_anyway");
         } else {
             message = unboundMessage;
         }
@@ -354,7 +328,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
             title,
             description: message,
             button,
-            cancelButton: _t("Go back"),
+            cancelButton: _t("action|go_back"),
             danger,
         });
         return finished;
@@ -362,7 +336,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
 
     private disconnectIdServer = (): void => {
         // Account data change will update localstorage, client, etc through dispatcher
-        MatrixClientPeg.get().setAccountData("m.identity_server", {
+        MatrixClientPeg.safeGet().setAccountData("m.identity_server", {
             base_url: null, // clear
         });
 
@@ -376,7 +350,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
         this.setState({
             busy: false,
             error: undefined,
-            currentClientIdServer: MatrixClientPeg.get().getIdentityServerUrl(),
+            currentClientIdServer: MatrixClientPeg.safeGet().getIdentityServerUrl(),
             idServer: newFieldVal,
         });
     };
@@ -386,45 +360,31 @@ export default class SetIdServer extends React.Component<IProps, IState> {
         let sectionTitle;
         let bodyText;
         if (idServerUrl) {
-            sectionTitle = _t("Identity server (%(server)s)", { server: abbreviateUrl(idServerUrl) });
+            sectionTitle = _t("identity_server|url", { server: abbreviateUrl(idServerUrl) });
             bodyText = _t(
-                "You are currently using <server></server> to discover and be discoverable by " +
-                    "existing contacts you know. You can change your identity server below.",
+                "identity_server|description_connected",
                 {},
                 { server: (sub) => <b>{abbreviateUrl(idServerUrl)}</b> },
             );
             if (this.props.missingTerms) {
                 bodyText = _t(
-                    "If you don't want to use <server /> to discover and be discoverable by existing " +
-                        "contacts you know, enter another identity server below.",
+                    "identity_server|change_server_prompt",
                     {},
                     { server: (sub) => <b>{abbreviateUrl(idServerUrl)}</b> },
                 );
             }
         } else {
-            sectionTitle = _t("Identity server");
-            bodyText = _t(
-                "You are not currently using an identity server. " +
-                    "To discover and be discoverable by existing contacts you know, " +
-                    "add one below.",
-            );
+            sectionTitle = _t("common|identity_server");
+            bodyText = _t("identity_server|description_disconnected");
         }
 
         let discoSection;
         if (idServerUrl) {
-            let discoButtonContent: React.ReactNode = _t("Disconnect");
-            let discoBodyText = _t(
-                "Disconnecting from your identity server will mean you " +
-                    "won't be discoverable by other users and you won't be " +
-                    "able to invite others by email or phone.",
-            );
+            let discoButtonContent: React.ReactNode = _t("action|disconnect");
+            let discoBodyText = _t("identity_server|disconnect_warning");
             if (this.props.missingTerms) {
-                discoBodyText = _t(
-                    "Using an identity server is optional. If you choose not to " +
-                        "use an identity server, you won't be discoverable by other users " +
-                        "and you won't be able to invite others by email or phone.",
-                );
-                discoButtonContent = _t("Do not use an identity server");
+                discoBodyText = _t("identity_server|description_optional");
+                discoButtonContent = _t("identity_server|do_not_use");
             }
             if (this.state.disconnectBusy) {
                 discoButtonContent = <InlineSpinner />;
@@ -443,7 +403,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
             <SettingsFieldset legend={sectionTitle} description={bodyText}>
                 <form className="mx_SetIdServer" onSubmit={this.checkIdServer}>
                     <Field
-                        label={_t("Enter a new identity server")}
+                        label={_t("identity_server|url_field_label")}
                         type="text"
                         autoComplete="off"
                         placeholder={this.state.defaultIdServer}
@@ -460,7 +420,7 @@ export default class SetIdServer extends React.Component<IProps, IState> {
                         onClick={this.checkIdServer}
                         disabled={!this.idServerChangeEnabled()}
                     >
-                        {_t("Change")}
+                        {_t("action|change")}
                     </AccessibleButton>
                     {discoSection}
                 </form>
